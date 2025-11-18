@@ -51,6 +51,9 @@ COPY . .
 
 # Build the Next.js application in production mode
 # This creates the .next/standalone directory with optimized output
+# Set NODE_OPTIONS to increase memory if needed and disable telemetry for faster builds
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # Verify the standalone build was created successfully
