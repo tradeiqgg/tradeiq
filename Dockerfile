@@ -1,38 +1,45 @@
 # ============================================================================
-# TradeIQ Multi-Stage Dockerfile for Starship Deployment
+# TradeIQ Multi-Stage Dockerfile for Starship Hyperlift Deployment
 # ============================================================================
 # This Dockerfile builds and runs the TradeIQ Next.js frontend application.
-# It's designed to work with the current structure and can be adapted for
-# a future monorepo layout with /app/frontend and /app/backend.
+# Uses Debian-based Node images (NOT Alpine) to support native dependencies
+# like 'usb' package which requires kernel headers and libusb.
 #
 # Package Manager: npm (detected via package-lock.json)
-# Port: 3000
+# Port: 8080 (Starship Hyperlift default)
 # Build Mode: Next.js standalone (fast boot, low memory)
 # ============================================================================
 
 # ----------------------------------------------------------------------------
 # STAGE 1: Builder - Install dependencies and build the Next.js app
 # ----------------------------------------------------------------------------
-FROM node:20-alpine AS builder
+FROM node:20-bullseye AS builder
 
 # Set working directory in container
 WORKDIR /app
 
 # Install build dependencies required for native module compilation
-# The 'usb' package (via @keystonehq/sdk) requires node-gyp which needs:
+# The 'usb' package (via @keystonehq/sdk) requires:
 # - python3: Required by node-gyp for native builds
 # - make: Build tool for compiling native code
 # - g++: C++ compiler for native bindings
-# - bash: Some build scripts require bash (Alpine uses sh by default)
-# These are only needed during build, not in the final runtime image
-RUN apk add --no-cache python3 make g++ bash
+# - libusb-1.0-0-dev: USB library development headers (required by usb package)
+# - linux-headers: Kernel headers for linux/magic.h and other kernel interfaces
+# Note: We use || true for linux-headers in case uname -r fails, but it's usually fine
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    libusb-1.0-0-dev \
+    linux-headers-$(uname -r) || true \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy package files for dependency installation
 # This layer is cached unless package files change
 COPY package.json package-lock.json* ./
 
 # Install dependencies using npm
-# Using --frozen-lockfile equivalent (ci install) for reproducible builds
+# Using npm ci for reproducible builds (equivalent to --frozen-lockfile)
 RUN npm ci
 
 # Copy all application source code
@@ -56,7 +63,7 @@ RUN npm run build
 # ----------------------------------------------------------------------------
 # STAGE 2: Runner - Create minimal production image
 # ----------------------------------------------------------------------------
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 # Set working directory
 WORKDIR /app
@@ -65,31 +72,32 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Create a non-root user for security
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 nextjs
 
 # Copy the standalone build output from builder stage
-# Next.js standalone includes only the necessary files for production
+# Next.js standalone mode creates a self-contained directory structure
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+
+# Copy .next/static for static assets optimization
+# Standalone mode doesn't include static files, so we copy them separately
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy public assets (images, etc.) - standalone doesn't include these
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# Copy .next/static for static assets optimization
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
 # Switch to non-root user
 USER nextjs
 
-# Expose port 3000 (Starship and Next.js default)
-EXPOSE 3000
+# Expose port 8080 (Starship Hyperlift default application port)
+EXPOSE 8080
 
-# Set environment variable for Next.js
-ENV PORT=3000
+# Set environment variables for Next.js
+ENV PORT=8080
 ENV HOSTNAME="0.0.0.0"
 
 # Start the Next.js production server
-# The standalone build includes node_modules, so we can run directly
+# The standalone build includes node_modules and server.js at the root
 CMD ["node", "server.js"]
 
 # ============================================================================
@@ -109,7 +117,7 @@ CMD ["node", "server.js"]
 #
 # Example for Option 2 (when ready):
 # COPY --from=builder --chown=nextjs:nodejs /app/app/backend ./app/backend
-# RUN npm install -g pm2
+# RUN apt-get update && apt-get install -y pm2 && rm -rf /var/lib/apt/lists/*
 # COPY ecosystem.config.js ./
 # CMD ["pm2-runtime", "ecosystem.config.js"]
 # ============================================================================

@@ -3,6 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   // Enable standalone output for Docker deployment
   // This creates a minimal .next/standalone directory with only required files
+  // Significantly reduces image size and improves startup time
   output: 'standalone',
   webpack: (config, { isServer }) => {
     config.resolve.fallback = {
