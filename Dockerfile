@@ -24,14 +24,13 @@ WORKDIR /app
 # - make: Build tool for compiling native code
 # - g++: C++ compiler for native bindings
 # - libusb-1.0-0-dev: USB library development headers (required by usb package)
-# - linux-headers: Kernel headers for linux/magic.h and other kernel interfaces
-# Note: We use || true for linux-headers in case uname -r fails, but it's usually fine
+# - linux-headers-amd64: Generic kernel headers for Debian (not host-specific)
 RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
     libusb-1.0-0-dev \
-    linux-headers-$(uname -r) || true \
+    linux-headers-amd64 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package files for dependency installation
@@ -60,6 +59,9 @@ COPY . .
 # This creates the .next/standalone directory with optimized output
 RUN npm run build
 
+# Verify the standalone build was created successfully
+RUN test -f .next/standalone/server.js || (echo "Error: standalone build failed - server.js not found" && exit 1)
+
 # ----------------------------------------------------------------------------
 # STAGE 2: Runner - Create minimal production image
 # ----------------------------------------------------------------------------
@@ -77,13 +79,16 @@ RUN groupadd --system --gid 1001 nodejs && \
 
 # Copy the standalone build output from builder stage
 # Next.js standalone mode creates a self-contained directory structure
+# The standalone directory contains server.js, node_modules, and app structure
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 
 # Copy .next/static for static assets optimization
 # Standalone mode doesn't include static files, so we copy them separately
+# These need to be at .next/static relative to where server.js runs
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy public assets (images, etc.) - standalone doesn't include these
+# Public folder needs to be at the root where server.js runs
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Switch to non-root user
