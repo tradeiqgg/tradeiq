@@ -2,8 +2,8 @@
 # TradeIQ Multi-Stage Dockerfile for Starship Hyperlift Deployment
 # ============================================================================
 # This Dockerfile builds and runs the TradeIQ Next.js frontend application.
-# Uses Debian-based Node images (NOT Alpine) to support native dependencies
-# like 'usb' package which requires kernel headers and libusb.
+# Uses Debian-based Node images for reliable builds without native compilation.
+# All native dependencies (usb/Keystone SDK) have been removed for compatibility.
 #
 # Package Manager: npm (detected via package-lock.json)
 # Port: 8080 (Starship Hyperlift default)
@@ -18,19 +18,13 @@ FROM node:20-bullseye AS builder
 # Set working directory in container
 WORKDIR /app
 
-# Install build dependencies required for native module compilation
-# The 'usb' package (via @keystonehq/sdk) requires:
-# - python3: Required by node-gyp for native builds
-# - make: Build tool for compiling native code
-# - g++: C++ compiler for native bindings
-# - libusb-1.0-0-dev: USB library development headers (required by usb package)
-# - linux-headers-amd64: Generic kernel headers for Debian (not host-specific)
+# Install build dependencies required for Next.js build
+# Note: Native dependencies (like 'usb' from Keystone SDK) have been removed
+# to ensure reliable Docker builds without kernel header compilation issues
 RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
-    libusb-1.0-0-dev \
-    linux-headers-amd64 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package files for dependency installation
