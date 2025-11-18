@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useWalletSafe } from '@/lib/useWalletSafe';
 import { useAuthStore } from '@/stores/authStore';
@@ -21,12 +20,12 @@ export function LogoHeader() {
   }, []);
 
   const navItems = [
-    { href: '/', label: 'Home' },
     { href: '/dashboard', label: 'Dashboard' },
-    { href: '/strategy/new', label: 'Create Strategy' },
-    { href: '/charts', label: 'Charts' },
+    { href: '/marketplace', label: 'Model Marketplace' },
     { href: '/competitions', label: 'Competitions' },
-    { href: '/leaderboard', label: 'Leaderboard' },
+    { href: '/arena', label: 'Live Chat / Arena' },
+    { href: '/gameroom', label: 'GameRoom' },
+    { href: '/profile', label: 'Profile' },
   ];
 
   const shortenedAddress = publicKey
@@ -55,17 +54,15 @@ export function LogoHeader() {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-3 group">
-              <Image
-                src="/iqlogobgrm.png"
-                alt="TradeIQ Logo"
-                width={32}
-                height={32}
-                className="transition-opacity group-hover:opacity-80"
-              />
-              <span className="text-xl font-display font-semibold text-white hidden sm:inline">
-                TradeIQ
-              </span>
+            <Link href="/" className="flex items-center gap-2 group">
+              <div className="relative px-3 py-1.5 rounded-md border border-[#7CFF4F]/40 bg-[#7CFF4F]/5 hover:bg-[#7CFF4F]/10 transition-all duration-300 group-hover:border-[#7CFF4F]/60 group-hover:shadow-[0_0_20px_rgba(124,255,79,0.3)] group-hover:scale-105">
+                <span className="text-xl font-mono font-bold text-[#7CFF4F] neon-logo-text italic">
+                  /Q
+                </span>
+                <span className="text-xl font-display font-bold text-white ml-2 hidden sm:inline neon-logo-text-secondary">
+                  TradeIQ
+                </span>
+              </div>
             </Link>
             {pathname !== '/' && (
               <nav className="hidden lg:flex items-center gap-1">

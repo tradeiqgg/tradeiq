@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { LayoutShell } from '@/components/LayoutShell';
 import { useAuthStore } from '@/stores/authStore';
 import { useStrategyStore } from '@/stores/strategyStore';
@@ -16,7 +15,7 @@ export default function DashboardPage() {
   const { connected, connecting, publicKey } = useWalletSafe();
   const router = useRouter();
   const { user, fetchUser, isLoading: authLoading, setPublicKey } = useAuthStore();
-  const { strategies, fetchStrategies, isLoading: strategiesLoading } = useStrategyStore();
+  const { strategies, fetchStrategies, isLoading: strategiesLoading, createStrategy } = useStrategyStore();
 
   useEffect(() => {
     setMounted(true);
@@ -123,72 +122,46 @@ export default function DashboardPage() {
     );
   }
 
-  const dashboardCards = [
-    {
-      title: 'Create Strategy',
-      description: 'Write a strategy in plain English and let AI convert it',
-      href: '/strategy/new',
-      icon: '✨',
-    },
-    {
-      title: 'Charts Explorer',
-      description: 'Load any chart and backtest your strategies',
-      href: '/charts',
-      icon: '📊',
-    },
-    {
-      title: 'Competitions',
-      description: 'Join weekly competitions and compete for SOL prizes',
-      href: '/competitions',
-      icon: '🏆',
-    },
-    {
-      title: 'Leaderboard',
-      description: 'See top performers and their strategies',
-      href: '/leaderboard',
-      icon: '📈',
-    },
-  ];
+  const handleCreateStrategy = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const newStrategy = await createStrategy({
+        user_id: user.id,
+        title: 'Untitled Strategy',
+        raw_prompt: '',
+        json_logic: {},
+        block_schema: {},
+        pseudocode: '',
+      });
+      router.push(`/strategy/${newStrategy.id}`);
+    } catch (error) {
+      console.error('Failed to create strategy:', error);
+    }
+  };
 
   return (
     <LayoutShell>
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-12">
-          <h1 className="text-3xl font-display font-semibold text-white mb-3">Dashboard</h1>
-          <p className="text-base text-[#A9A9B3] font-sans">
-            Welcome back! Manage your strategies and compete.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
-          {dashboardCards.map((card, idx) => (
-            <ScrollReveal key={card.href} direction="up" delay={idx * 100}>
-              <Link href={card.href}>
-                <div className="bg-[#111214] border border-[#1e1f22] rounded-lg p-6 transition-all cursor-pointer hover:border-[#7CFF4F]/40 hover:bg-[#151618]">
-                  <div className="flex items-start gap-4">
-                    <div className="text-3xl">{card.icon}</div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-display font-semibold mb-2 text-white">{card.title}</h3>
-                      <p className="text-sm text-[#A9A9B3] font-sans">{card.description}</p>
-                    </div>
-                    <div className="text-[#7CFF4F] font-sans">→</div>
-                  </div>
-                </div>
-              </Link>
-            </ScrollReveal>
-          ))}
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-display font-semibold text-white">My Strategies</h2>
-            <Link
-              href="/strategy/new"
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h1 className="text-3xl font-display font-semibold text-white mb-2">Dashboard</h1>
+              <p className="text-base text-[#A9A9B3] font-sans">
+                Your strategies
+              </p>
+            </div>
+            <button
+              onClick={handleCreateStrategy}
+              disabled={strategiesLoading}
               className="btn-primary"
             >
               + New Strategy
-            </Link>
+            </button>
           </div>
+        </div>
+
+        <div>
 
           {strategiesLoading ? (
             <div className="text-center py-12 text-[#A9A9B3] font-sans">
@@ -197,12 +170,13 @@ export default function DashboardPage() {
           ) : strategies.length === 0 ? (
             <div className="text-center py-12 bg-[#111214] border border-[#1e1f22] rounded-lg">
               <p className="text-[#A9A9B3] mb-4 font-sans">No strategies yet</p>
-              <Link
-                href="/strategy/new"
-                className="btn-primary inline-block"
+              <button
+                onClick={handleCreateStrategy}
+                disabled={strategiesLoading}
+                className="btn-primary"
               >
                 Create Your First Strategy
-              </Link>
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
