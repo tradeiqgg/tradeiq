@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import type { Strategy } from '@/types';
+import { syncFromJSON } from './core/IDESyncBridge';
+import { useIDEEngine } from './core/IDEEngine';
 
 interface JSONEditorProps {
   strategy: Strategy;
@@ -11,15 +13,25 @@ interface JSONEditorProps {
 export function JSONEditor({ strategy, onAutoSave }: JSONEditorProps) {
   const [jsonText, setJsonText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const ideEngine = useIDEEngine();
 
   useEffect(() => {
     try {
-      setJsonText(JSON.stringify(strategy.json_logic || {}, null, 2));
+      // Prioritize IDE engine state (which is updated by TQL editor)
+      if (ideEngine.jsonText && ideEngine.jsonText.trim() !== '{}') {
+        setJsonText(ideEngine.jsonText);
+      } else if (strategy.strategy_json) {
+        setJsonText(JSON.stringify(strategy.strategy_json, null, 2));
+      } else if (strategy.json_logic) {
+        setJsonText(JSON.stringify(strategy.json_logic, null, 2));
+      } else {
+        setJsonText('{}');
+      }
       setError(null);
     } catch (err) {
       setError('Invalid JSON in strategy');
     }
-  }, [strategy.json_logic]);
+  }, [strategy.strategy_json, strategy.json_logic, strategy.id, ideEngine.jsonText]);
 
   const handleChange = (value: string) => {
     setJsonText(value);
@@ -27,11 +39,25 @@ export function JSONEditor({ strategy, onAutoSave }: JSONEditorProps) {
 
     try {
       const parsed = JSON.parse(value);
-      // Update json_logic
-      onAutoSave({ json_logic: parsed });
       
-      // TODO: When AI backend is ready, convert JSON to blocks here
-      // For now, blocks will sync when user switches to block mode
+      // Update IDE engine JSON text
+      ideEngine.updateJSON(value);
+      
+      // Sync to TQL and Blocks
+      const syncResult = syncFromJSON(parsed);
+      if (syncResult.tql) {
+        ideEngine.updateTQL(syncResult.tql);
+      }
+      if (syncResult.blocks) {
+        ideEngine.updateBlocks(syncResult.blocks);
+      }
+      
+      // Update json_logic and strategy_json
+      onAutoSave({ 
+        json_logic: parsed,
+        strategy_json: parsed,
+        strategy_tql: syncResult.tql || undefined,
+      });
     } catch (err) {
       setError('Invalid JSON syntax');
     }

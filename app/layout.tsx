@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { WalletContextProvider } from '@/lib/wallet';
+import { AlertSystemProvider } from '@/components/alerts/AlertSystemProvider';
 
 export const metadata: Metadata = {
   title: 'TradeIQ — AI Trading IDE',
@@ -25,7 +26,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="font-sans">
-        <WalletContextProvider>{children}</WalletContextProvider>
+        <WalletContextProvider>
+          <AlertSystemProvider>
+            {children}
+          </AlertSystemProvider>
+        </WalletContextProvider>
       </body>
     </html>
   );

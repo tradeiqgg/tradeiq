@@ -37,6 +37,14 @@ export default function DashboardPage() {
     return () => clearTimeout(checkAuth);
   }, [mounted, connected, connecting, router]);
 
+  // Redirect to username setup if user doesn't have a username
+  useEffect(() => {
+    if (!mounted || checkingAuth || authLoading) return;
+    if (connected && user && !user.username) {
+      router.replace('/setup-username');
+    }
+  }, [mounted, checkingAuth, authLoading, connected, user, router]);
+
   // Ensure publicKey is set in auth store when wallet connects
   useEffect(() => {
     if (!mounted || checkingAuth) return;
@@ -63,6 +71,14 @@ export default function DashboardPage() {
       return () => clearTimeout(timer);
     }
   }, [connected, connecting, publicKey, mounted, checkingAuth, fetchUser]);
+
+  // Redirect to username setup if user doesn't have username
+  useEffect(() => {
+    if (!mounted || checkingAuth || authLoading) return;
+    if (user && (!user.username || user.username.trim() === '')) {
+      router.replace('/setup-username');
+    }
+  }, [user, mounted, checkingAuth, authLoading, router]);
 
   // Fetch strategies when user is loaded
   useEffect(() => {

@@ -2,37 +2,60 @@
 
 import { useState } from 'react';
 import type { Strategy } from '@/types';
-import { EnglishEditor } from './EnglishEditor';
+import { TQLEditor } from './TQLEditor';
 import { BlockEditor } from './BlockEditor';
 import { JSONEditor } from './JSONEditor';
-import { BacktestPanel } from './BacktestPanel';
+import { BacktestPanel } from './backtest/BacktestPanel';
 import { AIChatPanel } from './AIChatPanel';
 import { LogsPanel } from './LogsPanel';
 import { MarketResearchPanel } from './MarketResearchPanel';
 import { SettingsPanel } from './SettingsPanel';
+import { LiveMonitorPanel } from './live/LiveMonitorPanel';
+import { AlertsPanel } from './alerts/AlertsPanel';
+import { ExampleStrategiesPanel } from './ExampleStrategiesPanel';
 
-import type { DraggableBlock } from './BlockEditor';
+import type { BlockInstance } from './BlockPropertiesPanel';
+import { exampleStrategies, type ExampleStrategy } from '@/lib/tql/exampleStrategies';
 
 interface IDETabsProps {
-  activeTab: 'english' | 'blocks' | 'json' | 'backtests' | 'chat' | 'logs' | 'research' | 'settings';
-  onTabChange: (tab: 'english' | 'blocks' | 'json' | 'backtests' | 'chat' | 'logs' | 'research' | 'settings') => void;
+  activeTab: 'english' | 'blocks' | 'json' | 'backtests' | 'chat' | 'logs' | 'research' | 'settings' | 'live' | 'alerts' | 'examples';
+  onTabChange: (tab: 'english' | 'blocks' | 'json' | 'backtests' | 'chat' | 'logs' | 'research' | 'settings' | 'live' | 'alerts' | 'examples') => void;
   strategy?: Strategy;
   onAutoSave?: (updates: Partial<Strategy>) => void;
-  selectedBlock?: DraggableBlock | null;
-  onSelectBlock?: (block: DraggableBlock | null) => void;
+  selectedBlock?: BlockInstance | null;
+  onSelectBlock?: (block: BlockInstance | null) => void;
 }
 
 export function IDETabs({ activeTab, onTabChange, strategy, onAutoSave, selectedBlock, onSelectBlock }: IDETabsProps) {
   const tabs = [
-    { id: 'english' as const, label: 'English Mode', icon: '📝' },
+    { id: 'english' as const, label: 'TQL Code', icon: '💻' },
     { id: 'blocks' as const, label: 'Block Mode', icon: '🧩' },
     { id: 'json' as const, label: 'JSON / Advanced', icon: '⚙️' },
     { id: 'backtests' as const, label: 'Backtests', icon: '📊' },
+    { id: 'examples' as const, label: 'Examples', icon: '📚' },
+    { id: 'live' as const, label: 'Live Monitor', icon: '🔴' },
+    { id: 'alerts' as const, label: 'Alerts', icon: '🔔' },
     { id: 'chat' as const, label: 'AI Chat', icon: '💬' },
     { id: 'logs' as const, label: 'Logs & Output', icon: '📜' },
     { id: 'research' as const, label: 'Market Research', icon: '🔍' },
     { id: 'settings' as const, label: 'Settings', icon: '⚙️' },
   ];
+
+  const handleLoadExample = (example: ExampleStrategy) => {
+    if (!onAutoSave) return;
+    
+    // Load example strategy
+    onAutoSave({
+      title: example.name,
+      strategy_tql: example.tql,
+      strategy_json: example.strategy,
+      json_logic: example.strategy,
+      raw_prompt: example.description,
+    });
+    
+    // Switch to TQL code view
+    onTabChange('english');
+  };
 
   if (!strategy || !onAutoSave) {
     return null;
@@ -61,7 +84,7 @@ export function IDETabs({ activeTab, onTabChange, strategy, onAutoSave, selected
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'english' && (
-          <EnglishEditor strategy={strategy} onAutoSave={onAutoSave} />
+          <TQLEditor strategy={strategy} onAutoSave={onAutoSave} />
         )}
         {activeTab === 'blocks' && (
           <BlockEditor 
@@ -76,6 +99,15 @@ export function IDETabs({ activeTab, onTabChange, strategy, onAutoSave, selected
         )}
         {activeTab === 'backtests' && (
           <BacktestPanel strategy={strategy} />
+        )}
+        {activeTab === 'examples' && (
+          <ExampleStrategiesPanel onLoadStrategy={handleLoadExample} />
+        )}
+        {activeTab === 'live' && (
+          <LiveMonitorPanel strategy={strategy} />
+        )}
+        {activeTab === 'alerts' && (
+          <AlertsPanel strategy={strategy} />
         )}
         {activeTab === 'chat' && (
           <AIChatPanel strategy={strategy} onAutoSave={onAutoSave} />

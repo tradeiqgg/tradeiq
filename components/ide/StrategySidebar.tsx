@@ -6,9 +6,10 @@ import type { Strategy } from '@/types';
 interface StrategySidebarProps {
   strategy: Strategy;
   onAutoSave: (updates: Partial<Strategy>) => void;
+  onTabChange?: (tab: string) => void;
 }
 
-export function StrategySidebar({ strategy, onAutoSave }: StrategySidebarProps) {
+export function StrategySidebar({ strategy, onAutoSave, onTabChange }: StrategySidebarProps) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     explorer: true,
     files: false,
@@ -123,10 +124,16 @@ export function StrategySidebar({ strategy, onAutoSave }: StrategySidebarProps) 
           </button>
           {expandedSections.backtests && (
             <div className="pl-6 pb-2 space-y-1">
-              <div className="text-xs font-mono text-[#A9A9B3] py-1 px-2 hover:bg-[#151618] cursor-pointer">
+              <div 
+                onClick={() => onTabChange?.('backtests')}
+                className="text-xs font-mono text-[#A9A9B3] py-1 px-2 hover:bg-[#151618] hover:text-white cursor-pointer"
+              >
                 ▶ Run New Backtest
               </div>
-              <div className="text-xs font-mono text-[#A9A9B3] py-1 px-2 hover:bg-[#151618] cursor-pointer">
+              <div 
+                onClick={() => onTabChange?.('backtests')}
+                className="text-xs font-mono text-[#A9A9B3] py-1 px-2 hover:bg-[#151618] hover:text-white cursor-pointer"
+              >
                 📈 View History
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import type { Strategy } from '@/types';
+import { createDefaultStrategy } from '@/lib/tql/defaultStrategy';
 
 interface StrategyState {
   strategies: Strategy[];
@@ -68,9 +69,25 @@ export const useStrategyStore = create<StrategyState>((set, get) => ({
   createStrategy: async (strategy: Partial<Strategy>) => {
     set({ isLoading: true });
     try {
+      // Ensure strategy has valid TQ-JSS structure
+      const defaultTQJSS = createDefaultStrategy(strategy.title || 'Untitled Strategy');
+      
+      // Merge provided strategy data with default structure
+      const strategyToCreate: Partial<Strategy> = {
+        ...strategy,
+        // Ensure strategy_json exists with valid structure
+        strategy_json: strategy.strategy_json || defaultTQJSS,
+        json_logic: strategy.json_logic || defaultTQJSS,
+        // Ensure required fields exist
+        title: strategy.title || 'Untitled Strategy',
+        raw_prompt: strategy.raw_prompt || '',
+        block_schema: strategy.block_schema || { blocks: [] },
+        pseudocode: strategy.pseudocode || '',
+      };
+
       const { data, error } = await supabase
         .from('strategies')
-        .insert(strategy)
+        .insert(strategyToCreate)
         .select()
         .single();
 

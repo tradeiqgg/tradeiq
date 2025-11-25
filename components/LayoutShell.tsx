@@ -1,13 +1,17 @@
-'use client';
+"use client";
 
-import { ReactNode } from 'react';
-import { LogoHeader } from './LogoHeader';
+import { ReactNode } from "react";
+import { LogoHeader } from "@/components/LogoHeader";
 
-export function LayoutShell({ children }: { children: ReactNode }) {
+interface LayoutShellProps {
+  children: ReactNode;
+}
+
+export function LayoutShell({ children }: LayoutShellProps) {
   return (
-    <div className="min-h-screen bg-[#0B0B0C] flex flex-col">
+    <div className="min-h-screen bg-[#0B0B0C]">
       <LogoHeader />
-      <main className="flex-1">{children}</main>
+      <main>{children}</main>
     </div>
   );
 }

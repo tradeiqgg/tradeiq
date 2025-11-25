@@ -13,24 +13,34 @@ require('@solana/wallet-adapter-react-ui/styles.css');
 
 export function WalletContextProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
-  const [endpoint, setEndpoint] = useState<string>('https://api.mainnet-beta.solana.com');
-  const [wallets, setWallets] = useState<any[]>([]);
+  
+  // Initialize wallets immediately - don't wait for mount
+  const wallets = useMemo(() => {
+    if (typeof window === 'undefined') return [];
+    // Create wallet adapter instance
+    const phantom = new PhantomWalletAdapter();
+    return [phantom];
+  }, []);
+
+  // Initialize endpoint
+  const endpoint = useMemo(() => {
+    const network = WalletAdapterNetwork.Mainnet;
+    return process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl(network);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
-  const network = WalletAdapterNetwork.Mainnet;
-    const ep = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl(network);
-    setEndpoint(ep);
-    setWallets([new PhantomWalletAdapter()]);
   }, []);
-
-  // Always render the providers, but with empty wallets until mounted
-  // This ensures the context is always available
-  const walletList = mounted ? wallets : [];
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={walletList} autoConnect={mounted}>
+      <WalletProvider 
+        wallets={wallets} 
+        autoConnect={mounted}
+        onError={(error) => {
+          console.error('Wallet error:', error);
+        }}
+      >
         <WalletModalProvider>
           {children}
         </WalletModalProvider>

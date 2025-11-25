@@ -1,150 +1,210 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import type { DraggableBlock } from './BlockEditor';
+import { getBlockSpec } from '@/lib/tql/blocks';
+
+export interface BlockInstance {
+  id: string;
+  blockId: string;
+  label: string;
+  x: number;
+  y: number;
+  inputs: Record<string, any>;
+}
 
 interface BlockPropertiesPanelProps {
-  selectedBlock: DraggableBlock | null;
-  onUpdateBlock: (blockId: string, updates: Partial<DraggableBlock>) => void;
+  selectedBlock: BlockInstance | null;
+  onUpdateBlock: (blockId: string, updates: Partial<BlockInstance>) => void;
 }
 
 export function BlockPropertiesPanel({ selectedBlock, onUpdateBlock }: BlockPropertiesPanelProps) {
-  const [localBlock, setLocalBlock] = useState<DraggableBlock | null>(selectedBlock);
-
-  useEffect(() => {
-    setLocalBlock(selectedBlock);
-  }, [selectedBlock]);
-
-  if (!selectedBlock || !localBlock) {
+  if (!selectedBlock) {
     return (
-      <div className="h-full flex flex-col bg-[#111214]">
-        <div className="p-4 border-b border-[#1e1f22]">
-          <h2 className="text-xs font-mono uppercase tracking-wider text-[#7CFF4F]">
-            BLOCK PROPERTIES
-          </h2>
-        </div>
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="text-center">
-            <div className="text-4xl mb-2">🧩</div>
-            <div className="text-sm font-mono text-[#6f7177]">
-              Select a block to edit
-            </div>
+      <div className="h-full flex flex-col bg-[#111214] overflow-y-auto">
+        <div className="p-4">
+          <div className="text-xs font-mono uppercase tracking-wider text-[#7CFF4F] mb-4">
+            Block Properties
+          </div>
+          <div className="text-xs font-mono text-[#6f7177] text-center py-8">
+            Select a block to edit its properties
           </div>
         </div>
       </div>
     );
   }
 
-  const handleUpdate = (updates: Partial<DraggableBlock>) => {
-    const updated = { ...localBlock, ...updates };
-    setLocalBlock(updated);
-    onUpdateBlock(localBlock.id, updates);
+  const spec = getBlockSpec(selectedBlock.blockId);
+  if (!spec) {
+    return (
+      <div className="h-full flex flex-col bg-[#111214] overflow-y-auto p-4">
+        <div className="text-xs font-mono text-[#FF617D]">Unknown block type</div>
+      </div>
+    );
+  }
+
+  const handleInputChange = (inputName: string, value: any) => {
+    onUpdateBlock(selectedBlock.id, {
+      inputs: {
+        ...selectedBlock.inputs,
+        [inputName]: value,
+      },
+    });
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#111214] overflow-hidden">
-      {/* Header */}
-      <div className="p-4 border-b border-[#1e1f22]">
-        <h2 className="text-xs font-mono uppercase tracking-wider text-[#7CFF4F] mb-1">
-          BLOCK PROPERTIES
-        </h2>
-        <div className="text-xs font-mono text-[#A9A9B3]">
-          {localBlock.type}
+    <div className="h-full flex flex-col bg-[#111214] overflow-y-auto">
+      <div className="p-4 space-y-4">
+        <div className="text-xs font-mono uppercase tracking-wider text-[#7CFF4F] mb-4">
+          Block Properties
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-4 space-y-6">
-        {/* Label */}
+        {/* Block Info */}
         <div>
-          <label className="text-xs font-mono uppercase tracking-wider text-[#7CFF4F] mb-2 block">
-            LABEL
-          </label>
+          <label className="text-xs font-mono text-[#A9A9B3] mb-2 block">Block Type</label>
+          <div
+            className="text-sm font-mono px-3 py-2 rounded border"
+            style={{
+              backgroundColor: `${spec.color}20`,
+              borderColor: spec.color,
+              color: spec.color,
+            }}
+          >
+            {spec.label}
+          </div>
+          <div className="text-xs font-mono text-[#6f7177] mt-2">{spec.description}</div>
+        </div>
+
+        {/* Block Label */}
+        <div>
+          <label className="text-xs font-mono text-[#A9A9B3] mb-2 block">Label</label>
           <input
             type="text"
-            value={localBlock.label}
-            onChange={(e) => handleUpdate({ label: e.target.value })}
+            value={selectedBlock.label}
+            onChange={(e) =>
+              onUpdateBlock(selectedBlock.id, { label: e.target.value })
+            }
             className="w-full px-3 py-2 bg-[#0B0B0C] border border-[#1e1f22] text-white font-mono text-sm rounded focus:outline-none focus:border-[#7CFF4F] focus:ring-1 focus:ring-[#7CFF4F]"
-            placeholder="Block label"
           />
         </div>
 
-        {/* Type Display */}
-        <div>
-          <label className="text-xs font-mono uppercase tracking-wider text-[#7CFF4F] mb-2 block">
-            TYPE
-          </label>
-          <div className="px-3 py-2 bg-[#0B0B0C] border border-[#1e1f22] text-white font-mono text-sm rounded">
-            {localBlock.type}
-          </div>
-        </div>
-
-        {/* Position */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Block-specific inputs */}
+        {spec.inputs.length > 0 && (
           <div>
-            <label className="text-xs font-mono uppercase tracking-wider text-[#7CFF4F] mb-2 block">
-              X POSITION
-            </label>
-            <input
-              type="number"
-              value={Math.round(localBlock.x)}
-              onChange={(e) => handleUpdate({ x: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 bg-[#0B0B0C] border border-[#1e1f22] text-white font-mono text-sm rounded focus:outline-none focus:border-[#7CFF4F] focus:ring-1 focus:ring-[#7CFF4F]"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-mono uppercase tracking-wider text-[#7CFF4F] mb-2 block">
-              Y POSITION
-            </label>
-            <input
-              type="number"
-              value={Math.round(localBlock.y)}
-              onChange={(e) => handleUpdate({ y: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 bg-[#0B0B0C] border border-[#1e1f22] text-white font-mono text-sm rounded focus:outline-none focus:border-[#7CFF4F] focus:ring-1 focus:ring-[#7CFF4F]"
-            />
-          </div>
-        </div>
-
-        {/* Inputs */}
-        {localBlock.inputs && localBlock.inputs.length > 0 && (
-          <div>
-            <label className="text-xs font-mono uppercase tracking-wider text-[#7CFF4F] mb-2 block">
-              INPUTS
-            </label>
-            <div className="space-y-2">
-              {localBlock.inputs.map((input, idx) => (
-                <div key={idx} className="p-3 bg-[#0B0B0C] border border-[#1e1f22] rounded">
-                  <div className="text-xs font-mono text-[#A9A9B3] mb-1">{input.name}</div>
-                  <input
-                    type={input.type === 'number' ? 'number' : 'text'}
-                    value={input.value}
-                    onChange={(e) => {
-                      const updatedInputs = [...(localBlock.inputs || [])];
-                      updatedInputs[idx] = { ...input, value: e.target.value };
-                      handleUpdate({ inputs: updatedInputs });
-                    }}
-                    className="w-full px-2 py-1 bg-[#111214] border border-[#1e1f22] text-white font-mono text-xs rounded focus:outline-none focus:border-[#7CFF4F]"
-                  />
-                </div>
-              ))}
+            <label className="text-xs font-mono text-[#A9A9B3] mb-2 block">Parameters</label>
+            <div className="space-y-3">
+              {spec.inputs.map((inputSpec, index) => {
+                const currentValue = selectedBlock.inputs[inputSpec.name] || '';
+                
+                return (
+                  <div key={index} className="p-3 bg-[#0B0B0C] rounded border border-[#1e1f22]">
+                    <div className="text-xs font-mono text-[#7CFF4F] mb-1">{inputSpec.name}</div>
+                    <div className="text-xs font-mono text-[#6f7177] mb-2">{inputSpec.description}</div>
+                    
+                    {inputSpec.type === 'boolean' ? (
+                      <select
+                        value={currentValue.toString()}
+                        onChange={(e) => handleInputChange(inputSpec.name, e.target.value === 'true')}
+                        className="w-full px-2 py-1 bg-[#111214] border border-[#1e1f22] text-white font-mono text-xs rounded focus:outline-none focus:border-[#7CFF4F]"
+                      >
+                        <option value="true">True</option>
+                        <option value="false">False</option>
+                      </select>
+                    ) : inputSpec.type === 'number' ? (
+                      <input
+                        type="number"
+                        value={currentValue}
+                        onChange={(e) => handleInputChange(inputSpec.name, Number(e.target.value))}
+                        placeholder={inputSpec.description}
+                        className="w-full px-2 py-1 bg-[#111214] border border-[#1e1f22] text-white font-mono text-xs rounded focus:outline-none focus:border-[#7CFF4F]"
+                      />
+                    ) : inputSpec.name === 'operator' ? (
+                      <select
+                        value={currentValue}
+                        onChange={(e) => handleInputChange(inputSpec.name, e.target.value)}
+                        className="w-full px-2 py-1 bg-[#111214] border border-[#1e1f22] text-white font-mono text-xs rounded focus:outline-none focus:border-[#7CFF4F]"
+                      >
+                        <option value="gt">&gt; (greater than)</option>
+                        <option value="lt">&lt; (less than)</option>
+                        <option value="gte">&gt;= (greater or equal)</option>
+                        <option value="lte">&lt;= (less or equal)</option>
+                        <option value="eq">== (equal)</option>
+                        <option value="neq">!= (not equal)</option>
+                      </select>
+                    ) : inputSpec.name === 'direction' && selectedBlock.blockId === 'entry_market' ? (
+                      <select
+                        value={currentValue}
+                        onChange={(e) => handleInputChange(inputSpec.name, e.target.value)}
+                        className="w-full px-2 py-1 bg-[#111214] border border-[#1e1f22] text-white font-mono text-xs rounded focus:outline-none focus:border-[#7CFF4F]"
+                      >
+                        <option value="long">Long</option>
+                        <option value="short">Short</option>
+                      </select>
+                    ) : inputSpec.name === 'direction' && selectedBlock.blockId === 'exit_position' ? (
+                      <select
+                        value={currentValue}
+                        onChange={(e) => handleInputChange(inputSpec.name, e.target.value)}
+                        className="w-full px-2 py-1 bg-[#111214] border border-[#1e1f22] text-white font-mono text-xs rounded focus:outline-none focus:border-[#7CFF4F]"
+                      >
+                        <option value="any">Any</option>
+                        <option value="long">Long</option>
+                        <option value="short">Short</option>
+                      </select>
+                    ) : inputSpec.name === 'size_mode' ? (
+                      <select
+                        value={currentValue}
+                        onChange={(e) => handleInputChange(inputSpec.name, e.target.value)}
+                        className="w-full px-2 py-1 bg-[#111214] border border-[#1e1f22] text-white font-mono text-xs rounded focus:outline-none focus:border-[#7CFF4F]"
+                      >
+                        <option value="percent">Percent</option>
+                        <option value="fixed">Fixed</option>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={typeof currentValue === 'object' ? JSON.stringify(currentValue) : currentValue}
+                        onChange={(e) => {
+                          try {
+                            const parsed = JSON.parse(e.target.value);
+                            handleInputChange(inputSpec.name, parsed);
+                          } catch {
+                            handleInputChange(inputSpec.name, e.target.value);
+                          }
+                        }}
+                        placeholder={inputSpec.description}
+                        className="w-full px-2 py-1 bg-[#111214] border border-[#1e1f22] text-white font-mono text-xs rounded focus:outline-none focus:border-[#7CFF4F]"
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Add Input Button */}
+        {/* Position (for debugging/fine-tuning) */}
         <div>
-          <button
-            onClick={() => {
-              const newInputs = [...(localBlock.inputs || []), { name: 'input', type: 'string', value: '' }];
-              handleUpdate({ inputs: newInputs });
-            }}
-            className="w-full px-3 py-2 bg-[#7CFF4F]/20 border border-[#7CFF4F]/40 text-[#7CFF4F] font-mono text-xs rounded hover:bg-[#7CFF4F]/30 transition-colors"
-          >
-            + ADD INPUT
-          </button>
+          <label className="text-xs font-mono text-[#A9A9B3] mb-2 block">Position</label>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              value={Math.round(selectedBlock.x)}
+              onChange={(e) =>
+                onUpdateBlock(selectedBlock.id, { x: Number(e.target.value) })
+              }
+              className="w-full px-3 py-2 bg-[#0B0B0C] border border-[#1e1f22] text-white font-mono text-xs rounded focus:outline-none focus:border-[#7CFF4F]"
+              placeholder="X"
+            />
+            <input
+              type="number"
+              value={Math.round(selectedBlock.y)}
+              onChange={(e) =>
+                onUpdateBlock(selectedBlock.id, { y: Number(e.target.value) })
+              }
+              className="w-full px-3 py-2 bg-[#0B0B0C] border border-[#1e1f22] text-white font-mono text-xs rounded focus:outline-none focus:border-[#7CFF4F]"
+              placeholder="Y"
+            />
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

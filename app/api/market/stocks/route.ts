@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 // Finnhub API for stock data
 // Free tier: 60 calls/minute
 // Get API key from: https://finnhub.io/register
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || 'demo';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -14,9 +13,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const apiKey = process.env.FINNHUB_API_KEY;
+    if (!apiKey || apiKey === 'demo') {
+      return NextResponse.json(
+        { error: 'Finnhub disabled in dev', symbol: symbol.toUpperCase() },
+        { status: 200 }
+      );
+    }
+
     // Fetch quote (current price)
     const quoteResponse = await fetch(
-      `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`,
+      `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`,
       {
         headers: {
           'Accept': 'application/json',
@@ -27,7 +34,11 @@ export async function GET(request: NextRequest) {
     if (!quoteResponse.ok) {
       const errorText = await quoteResponse.text();
       console.error('Finnhub API error:', quoteResponse.status, errorText);
-      throw new Error(`Failed to fetch quote: ${quoteResponse.status}`);
+      // Return graceful error instead of throwing
+      return NextResponse.json(
+        { error: 'Finnhub unavailable in dev', symbol: symbol.toUpperCase() },
+        { status: 200 }
+      );
     }
 
     const quote = await quoteResponse.json();
@@ -78,12 +89,14 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error fetching stock data:', error);
+    // Return graceful error instead of 500 to prevent SSR failures
     return NextResponse.json(
       { 
-        error: error.message || 'Failed to fetch stock data',
-        details: FINNHUB_API_KEY === 'demo' ? 'Using demo API key. Set FINNHUB_API_KEY in .env.local for full access.' : undefined
+        error: 'Finnhub unavailable in dev',
+        symbol: symbol?.toUpperCase() || 'UNKNOWN',
+        details: 'Set FINNHUB_API_KEY in .env.local for full access.'
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }

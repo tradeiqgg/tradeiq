@@ -4,6 +4,16 @@ export interface User {
   created_at: string;
   fake_balance: number;
   tier: 'free' | 'holder';
+  // Chapter 10: Profile fields
+  username?: string;
+  avatar_url?: string;
+  bio?: string;
+  joined_at?: string;
+  builder_xp?: number;
+  achievements?: any[];
+  followers_count?: number;
+  following_count?: number;
+  social_links?: Record<string, string>;
 }
 
 export interface Strategy {
@@ -16,6 +26,55 @@ export interface Strategy {
   pseudocode: string;
   created_at: string;
   updated_at: string;
+  // Chapter 10: Publishing fields
+  description?: string;
+  visibility?: 'public' | 'private' | 'unlisted';
+  tags?: string[];
+  strategy_json?: Record<string, any>;
+  strategy_tql?: string;
+  strategy_blocks?: any;
+  version?: number;
+  forked_from?: string;
+  likes_count?: number;
+  comments_count?: number;
+  downloads_count?: number;
+  is_featured?: boolean;
+}
+
+export interface StrategyVersion {
+  id: string;
+  strategy_id: string;
+  version: number;
+  strategy_json?: Record<string, any>;
+  strategy_tql?: string;
+  strategy_blocks?: any;
+  created_at: string;
+  editor_mode?: 'tql' | 'blocks' | 'json';
+  summary?: string;
+}
+
+export interface StrategyLike {
+  id: string;
+  user_id: string;
+  strategy_id: string;
+  created_at: string;
+}
+
+export interface StrategyComment {
+  id: string;
+  strategy_id: string;
+  user_id: string;
+  message: string;
+  created_at: string;
+  updated_at: string;
+  user?: User;
+}
+
+export interface UserFollowing {
+  id: string;
+  follower_id: string;
+  followed_id: string;
+  created_at: string;
 }
 
 export interface Backtest {

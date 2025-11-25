@@ -24,12 +24,27 @@ import { TabbedCodeAnimation } from '@/components/ui/TabbedCodeAnimation';
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
-  const { connected } = useWalletSafe();
-  const { user } = useAuthStore();
+  const { connected, connecting, publicKey } = useWalletSafe();
+  const { user, setPublicKey, fetchUser } = useAuthStore();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Handle wallet connection and fetch user
+  useEffect(() => {
+    if (!mounted) return;
+    if (connected && publicKey) {
+      console.log('Landing page: Wallet connected, setting publicKey');
+      setPublicKey(publicKey);
+      // Fetch user after a short delay to ensure wallet is fully connected
+      setTimeout(() => {
+        fetchUser().catch((err) => {
+          console.error('Error fetching user:', err);
+        });
+      }, 500);
+    }
+  }, [connected, publicKey, mounted, setPublicKey, fetchUser]);
 
   return (
     <div className="min-h-screen bg-[#0B0B0C]">

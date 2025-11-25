@@ -128,7 +128,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       console.log('fetchUser: User found:', data);
-      set({ user: data as User, isLoading: false });
+      const userData = data as User;
+      set({ user: userData, isLoading: false });
+      
+      // Check if username is missing and redirect to setup
+      if (!userData.username || userData.username.trim() === '') {
+        // Don't redirect here - let the page component handle it
+        // This prevents infinite redirect loops
+      }
     } catch (error: any) {
       console.error('fetchUser: Error:', error);
       // Always clear loading state, even on error
