@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { LayoutShell } from '@/components/LayoutShell';
 import { StrategyGallery } from '@/components/strategyLibrary';
-import { NeonCard } from '@/components/ui/NeonCard';
+import { browserClient as supabase } from '@/lib/supabase/browserClient';
 import type { Strategy } from '@/types';
 
 export default function DiscoverPage() {
@@ -12,51 +12,105 @@ export default function DiscoverPage() {
   const [trending, setTrending] = useState<Strategy[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'all' | 'trending' | 'new' | 'popular'>('trending');
+  
+  // FIXED: Use ref to prevent infinite loops from re-fetching
+  const hasLoadedRef = useRef(false);
 
-  const loadStrategies = useCallback(async () => {
-    setIsLoading(true);
+  // FIXED: Fetch public strategies directly from browser client
+  // This works for both authenticated and unauthenticated users
+  const fetchDiscoverStrategies = async (filter: typeof activeFilter = 'trending', query?: string) => {
     try {
-      if (activeFilter === 'trending') {
-        const response = await fetch('/api/discover/trending?limit=20');
-        if (response.ok) {
-          const { strategies: data } = await response.json();
-          setTrending(data || []);
-          setStrategies(data || []);
-        }
+      setIsLoading(true);
+      
+      let supabaseQuery = supabase
+        .from('strategies')
+        .select('id, title, tags, description, user_id, created_at, likes_count, comments_count, visibility')
+        .eq('visibility', 'public'); // CRITICAL: Only fetch public strategies
+
+      // Apply search query if provided
+      if (query && query.trim()) {
+        supabaseQuery = supabaseQuery.or(
+          `title.ilike.%${query}%,description.ilike.%${query}%`
+        );
+      }
+
+      // Apply sorting based on filter
+      if (filter === 'trending') {
+        // Trending: Most liked in last 7 days
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        supabaseQuery = supabaseQuery
+          .gte('created_at', weekAgo.toISOString())
+          .order('likes_count', { ascending: false })
+          .order('comments_count', { ascending: false });
+      } else if (filter === 'new') {
+        supabaseQuery = supabaseQuery.order('created_at', { ascending: false });
+      } else if (filter === 'popular') {
+        supabaseQuery = supabaseQuery.order('likes_count', { ascending: false });
       } else {
-        const sort = activeFilter === 'new' ? 'created_at' : 'likes_count';
-        const response = await fetch(`/api/discover/search?sort=${sort}&limit=20`);
-        if (response.ok) {
-          const { strategies: data } = await response.json();
-          setStrategies(data || []);
-        }
+        // 'all' - just order by created_at
+        supabaseQuery = supabaseQuery.order('created_at', { ascending: false });
+      }
+
+      const { data, error } = await supabaseQuery.limit(20);
+
+      if (error) {
+        console.error('Failed to fetch strategies:', error);
+        throw error;
+      }
+
+      // CRITICAL FIX: Normalize JSON to prevent infinite re-renders
+      // This deep clones the data and ensures stable object references
+      const normalized = data ? JSON.parse(JSON.stringify(data)) : [];
+      
+      if (filter === 'trending') {
+        setTrending(normalized);
+        setStrategies(normalized);
+      } else {
+        setStrategies(normalized);
       }
     } catch (error) {
       console.error('Failed to load strategies:', error);
+      setStrategies([]);
+      setTrending([]);
     } finally {
       setIsLoading(false);
     }
-  }, [activeFilter]);
+  };
+
+  // FIXED: Load strategies on mount only (empty dependency array)
+  useEffect(() => {
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      fetchDiscoverStrategies('trending');
+    }
+  }, []); // Empty dependency array - only run once on mount
+
+  // FIXED: Load strategies when filter changes (but prevent infinite loops)
+  const previousFilterRef = useRef(activeFilter);
+  
+  useEffect(() => {
+    // Only fetch if filter actually changed and initial load is complete
+    if (previousFilterRef.current !== activeFilter && hasLoadedRef.current) {
+      previousFilterRef.current = activeFilter;
+      // When filter changes, clear search query and fetch fresh
+      fetchDiscoverStrategies(activeFilter);
+    }
+  }, [activeFilter]); // Only depend on activeFilter
+
+  const loadStrategies = async () => {
+    await fetchDiscoverStrategies(activeFilter, searchQuery);
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) {
-      loadStrategies();
+      await fetchDiscoverStrategies(activeFilter);
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/discover/search?q=${encodeURIComponent(searchQuery)}&limit=20`);
-      if (response.ok) {
-        const { strategies: data } = await response.json();
-        setStrategies(data || []);
-      }
-    } catch (error) {
-      console.error('Search failed:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    // Use the same fetch function with search query
+    await fetchDiscoverStrategies(activeFilter, searchQuery);
   };
 
   return (
