@@ -93,11 +93,11 @@ export async function runIdeValidation(
                       code = TQErrorCode.INVALID_SECTION;
                     }
                     return {
-                      type: 'error' as const,
+                    type: 'error' as const,
                       code,
-                      message: e.message,
-                      line: e.line,
-                      column: e.column,
+                    message: e.message,
+                    line: e.line,
+                    column: e.column,
                     };
                   }),
                   warnings: [],

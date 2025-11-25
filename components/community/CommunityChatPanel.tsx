@@ -52,7 +52,11 @@ export function CommunityChatPanel() {
 
   const loadMessages = async () => {
     try {
-      const { data, error } = await supabase
+      // FIXED: Use authenticated client for RLS policies
+      const { getAuthenticatedClient } = await import('@/lib/supabase/fetch');
+      const authClient = await getAuthenticatedClient();
+      
+      const { data, error } = await authClient
         .from('community_chat_messages')
         .select('*')
         .order('created_at', { ascending: true })
@@ -71,16 +75,29 @@ export function CommunityChatPanel() {
     if (!user || !message.trim()) return;
 
     try {
-      const { error } = await supabase.from('community_chat_messages').insert({
-        user_id: user.id,
-        username: user.username || 'Anonymous',
-        message: message.trim(),
+      // FIXED: Use server-side API route to bypass RLS issues
+      const response = await fetch('/api/community/message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          username: user.username || 'Anonymous',
+          message: message.trim(),
+        }),
       });
 
-      if (error) throw error;
-    } catch (error) {
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send message');
+      }
+
+      // Reload messages to show the new one
+      await loadMessages();
+    } catch (error: any) {
       console.error('Failed to send message:', error);
-      alert('Failed to send message. Please try again.');
+      alert(error.message || 'Failed to send message. Please try again.');
     }
   };
 

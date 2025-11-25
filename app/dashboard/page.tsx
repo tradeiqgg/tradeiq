@@ -45,32 +45,19 @@ export default function DashboardPage() {
     }
   }, [mounted, checkingAuth, authLoading, connected, user, router]);
 
-  // Ensure publicKey is set in auth store when wallet connects
+  // FIXED: Set publicKey once and let setPublicKey handle fetchUser to prevent duplicate calls
   useEffect(() => {
     if (!mounted || checkingAuth) return;
     if (connected && publicKey) {
-      console.log('Dashboard: Setting publicKey in auth store');
-      setPublicKey(publicKey);
+      const currentPublicKey = useAuthStore.getState().publicKey;
+      // Only update if publicKey actually changed
+      if (!currentPublicKey || currentPublicKey.toBase58() !== publicKey.toBase58()) {
+        console.log('Dashboard: Setting publicKey in auth store');
+        setPublicKey(publicKey);
+        // setPublicKey will handle fetchUser internally, so we don't need a separate useEffect
+      }
     }
   }, [connected, publicKey, mounted, checkingAuth, setPublicKey]);
-
-  // Fetch user when connected and publicKey is available
-  useEffect(() => {
-    if (!mounted || checkingAuth) return;
-    if (connected && !connecting && publicKey) {
-      // Small delay to ensure wallet is fully initialized
-      const timer = setTimeout(async () => {
-        console.log('Dashboard: Wallet connected, fetching user...');
-        try {
-          await fetchUser();
-          console.log('Dashboard: User fetch completed');
-        } catch (err) {
-          console.error('Dashboard: Error fetching user:', err);
-        }
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [connected, connecting, publicKey, mounted, checkingAuth, fetchUser]);
 
   // Redirect to username setup if user doesn't have username
   useEffect(() => {

@@ -19,15 +19,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
 
   setPublicKey: (publicKey) => {
-    console.log('setPublicKey called:', publicKey?.toBase58() || 'null');
+    const currentPublicKey = get().publicKey;
+    const publicKeyString = publicKey?.toBase58();
+    const currentPublicKeyString = currentPublicKey?.toBase58();
+    
+    // FIXED: Only update if publicKey actually changed to prevent infinite loops
+    if (publicKeyString === currentPublicKeyString) {
+      return;
+    }
+    
+    console.log('setPublicKey called:', publicKeyString || 'null');
     set({ publicKey });
+    
     if (publicKey) {
-      // Fetch user asynchronously
-      setTimeout(() => {
-        get().fetchUser().catch((err) => {
-          console.error('Error in fetchUser from setPublicKey:', err);
-        });
-      }, 100);
+      // Fetch user asynchronously, but only if we don't already have a user for this key
+      const currentUser = get().user;
+      if (!currentUser || currentUser.wallet_address !== publicKeyString) {
+        setTimeout(() => {
+          get().fetchUser().catch((err) => {
+            console.error('Error in fetchUser from setPublicKey:', err);
+          });
+        }, 100);
+      }
+    } else {
+      // Clear user when publicKey is cleared
+      set({ user: null });
     }
   },
 

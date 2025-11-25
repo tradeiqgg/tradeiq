@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { LayoutShell } from '@/components/LayoutShell';
 import { useAuthStore } from '@/stores/authStore';
@@ -9,64 +9,69 @@ import { useWalletSafe } from '@/lib/useWalletSafe';
 import { StrategyIDE } from '@/components/ide/StrategyIDE';
 import { fetchStrategy } from '@/lib/cloud/strategySync';
 import PublicStrategyView from './PublicStrategyView';
+import { ErrorBoundary } from '@/components/ide/ErrorBoundary';
 import type { Strategy } from '@/types';
 
 export default function StrategyIDEPage() {
   const [mounted, setMounted] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isPublicView, setIsPublicView] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const params = useParams();
   const router = useRouter();
   const { connected, connecting } = useWalletSafe();
   const { user, fetchUser } = useAuthStore();
   const { currentStrategy, setCurrentStrategy, fetchStrategies } = useStrategyStore();
   const strategyId = params?.id as string;
+  const hasCheckedRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Check authentication and determine view mode
-  useEffect(() => {
-    if (!mounted || !strategyId) return;
+  // Check authentication and determine view mode - FIXED: Prevent infinite loops
+  const checkStrategy = useCallback(async () => {
+    if (!mounted || !strategyId || hasCheckedRef.current) return;
+    hasCheckedRef.current = true;
     
-    const checkStrategy = async () => {
-      try {
-        // Try to fetch as public first
-        const publicStrategy = await fetchStrategy(strategyId);
-        
-        if (publicStrategy) {
-          // Check if user owns it
-          if (connected && user?.id) {
-            await fetchUser();
-            if (user?.id === publicStrategy.user_id) {
-              // User owns it, show IDE
-              await fetchStrategies(user.id);
-              const { strategies } = useStrategyStore.getState();
-              const strategy = strategies.find(s => s.id === strategyId);
-              if (strategy) {
-                setCurrentStrategy(strategy);
-                setIsPublicView(false);
-              } else {
-                setIsPublicView(true);
-              }
+    try {
+      setError(null);
+      // Try to fetch as public first
+      const publicStrategy = await fetchStrategy(strategyId);
+      
+      if (publicStrategy) {
+        // Check if user owns it
+        if (connected && user?.id) {
+          const currentUser = useAuthStore.getState().user;
+          if (currentUser?.id === publicStrategy.user_id) {
+            // User owns it, show IDE
+            await fetchStrategies(currentUser.id);
+            const { strategies } = useStrategyStore.getState();
+            const strategy = strategies.find(s => s.id === strategyId);
+            if (strategy) {
+              setCurrentStrategy(strategy);
+              setIsPublicView(false);
             } else {
-              // Public strategy, show public view
               setIsPublicView(true);
             }
           } else {
-            // Not logged in, show public view if public
-            if (publicStrategy.visibility === 'public' || publicStrategy.visibility === 'unlisted') {
-              setIsPublicView(true);
-            } else {
-              router.replace('/');
-            }
+            // Public strategy, show public view
+            setIsPublicView(true);
           }
         } else {
-          // Not found as public, try as owner
-          if (connected && user?.id) {
-            await fetchUser();
-            await fetchStrategies(user.id);
+          // Not logged in, show public view if public
+          if (publicStrategy.visibility === 'public' || publicStrategy.visibility === 'unlisted') {
+            setIsPublicView(true);
+          } else {
+            router.replace('/');
+          }
+        }
+      } else {
+        // Not found as public, try as owner
+        if (connected && user?.id) {
+          const currentUser = useAuthStore.getState().user;
+          if (currentUser) {
+            await fetchStrategies(currentUser.id);
             const { strategies } = useStrategyStore.getState();
             const strategy = strategies.find(s => s.id === strategyId);
             if (strategy) {
@@ -78,17 +83,24 @@ export default function StrategyIDEPage() {
           } else {
             router.replace('/');
           }
+        } else {
+          router.replace('/');
         }
-      } catch (error) {
-        console.error('Failed to load strategy:', error);
-        router.replace('/dashboard');
-      } finally {
-        setCheckingAuth(false);
       }
-    };
+    } catch (err: any) {
+      console.error('Failed to load strategy:', err);
+      setError(err.message || 'Failed to load strategy');
+      router.replace('/dashboard');
+    } finally {
+      setCheckingAuth(false);
+    }
+  }, [mounted, strategyId, connected, user?.id, router, fetchStrategies, setCurrentStrategy]);
 
-    checkStrategy();
-  }, [mounted, strategyId, connected, user?.id, fetchUser, fetchStrategies, setCurrentStrategy, router]);
+  useEffect(() => {
+    if (mounted && strategyId && !hasCheckedRef.current) {
+      checkStrategy();
+    }
+  }, [mounted, strategyId, checkStrategy]);
 
   // Show loading state
   if (!mounted || checkingAuth) {
@@ -121,9 +133,47 @@ export default function StrategyIDEPage() {
     );
   }
 
+  if (error) {
+    return (
+      <LayoutShell>
+        <div className="h-screen flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-400 font-mono mb-4">{error}</p>
+            <button
+              onClick={() => {
+                hasCheckedRef.current = false;
+                setCheckingAuth(true);
+                checkStrategy();
+              }}
+              className="px-4 py-2 bg-[#7CFF4F] text-[#0B0B0C] rounded-lg font-sans font-medium hover:bg-[#70e84b] transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </LayoutShell>
+    );
+  }
+
   return (
     <LayoutShell>
-      <StrategyIDE strategy={currentStrategy} />
+      <ErrorBoundary
+        fallback={
+          <div className="h-screen flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-red-400 font-mono mb-4">Failed to load strategy IDE</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-[#7CFF4F] text-[#0B0B0C] rounded-lg font-sans font-medium hover:bg-[#70e84b] transition-colors"
+              >
+                Reload Page
+              </button>
+            </div>
+          </div>
+        }
+      >
+        {currentStrategy && <StrategyIDE strategy={currentStrategy} />}
+      </ErrorBoundary>
     </LayoutShell>
   );
 }

@@ -24,16 +24,26 @@ export default function CompetitionsPage() {
     setMounted(true);
   }, []);
 
+  // FIXED: Prevent blank screen by showing loading state instead of returning null
   useEffect(() => {
     if (!mounted) return;
-    if (!connected && !connecting) {
-      router.replace('/');
-      return;
-    }
-    fetchCompetitions();
-    if (user?.id) {
-      fetchStrategies(user.id);
-    }
+    
+    // Give wallet adapter time to check for existing connections
+    const checkAuth = setTimeout(() => {
+      if (!connected && !connecting) {
+        router.replace('/');
+        return;
+      }
+      
+      if (connected) {
+        fetchCompetitions();
+        if (user?.id) {
+          fetchStrategies(user.id);
+        }
+      }
+    }, 500);
+
+    return () => clearTimeout(checkAuth);
   }, [mounted, connected, connecting, router, fetchCompetitions, user?.id, fetchStrategies]);
 
   useEffect(() => {
@@ -55,8 +65,41 @@ export default function CompetitionsPage() {
     }
   };
 
-  if (!connected || !user) {
-    return null;
+  // FIXED: Show loading state instead of blank screen
+  if (!mounted) {
+    return (
+      <LayoutShell>
+        <div className="container mx-auto px-4 py-6">
+          <div className="text-center py-12 text-muted-foreground font-mono">
+            <span className="terminal-spinner" /> Loading...
+          </div>
+        </div>
+      </LayoutShell>
+    );
+  }
+
+  if (!connected && !connecting) {
+    return (
+      <LayoutShell>
+        <div className="container mx-auto px-4 py-6">
+          <div className="text-center py-12 text-muted-foreground font-mono">
+            Redirecting...
+          </div>
+        </div>
+      </LayoutShell>
+    );
+  }
+
+  if (!user) {
+    return (
+      <LayoutShell>
+        <div className="container mx-auto px-4 py-6">
+          <div className="text-center py-12 text-muted-foreground font-mono">
+            <span className="terminal-spinner" /> Loading user data...
+          </div>
+        </div>
+      </LayoutShell>
+    );
   }
 
   const activeCompetitions = competitions.filter((c) => c.status === 'active');
