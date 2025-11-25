@@ -26,7 +26,9 @@ export class StocksFeed {
     this.interval = interval;
     this.onCandle = onCandle;
     this.onError = onError;
-    this.apiKey = apiKey || process.env.NEXT_PUBLIC_FINNHUB_API_KEY || '';
+    // Note: FINNHUB_API_KEY is server-side only, so we can't access it from client-side code
+    // This feed should only be used server-side or with an API key passed explicitly
+    this.apiKey = apiKey || '';
   }
 
   connect(): void {
