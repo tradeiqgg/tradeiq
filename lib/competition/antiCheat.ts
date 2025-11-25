@@ -16,10 +16,12 @@ export async function hashStrategy(strategy: TQJSSchema): Promise<string> {
 
   // Use Web Crypto API for SHA256
   const encoder = new TextEncoder();
-  const data = encoder.encode(jsonString); // Uint8Array
+  const encoded = encoder.encode(jsonString);
   
-  // FIX: crypto.subtle.digest must receive an ArrayBuffer, not Uint8Array<ArrayBufferLike>
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data.buffer);
+  // FIX: Create a clean Uint8Array to avoid TypeScript type mismatches with Node.js WebCrypto
+  // This works universally across Browser, Node.js 18+, and Vercel's build environment
+  const bytes = new Uint8Array(encoded);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 
