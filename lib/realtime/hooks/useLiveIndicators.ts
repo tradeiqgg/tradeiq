@@ -2,7 +2,7 @@
 // CHAPTER 11: useLiveIndicators Hook
 // =====================================================================
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { getLiveIndicatorEngine } from '../indicators/liveIndicatorEngine';
 import type { IndicatorValue } from '../indicators/liveIndicatorEngine';
 import type { TQIndicatorId } from '@/lib/tql/indicators';
@@ -30,8 +30,11 @@ export function useLiveIndicators(
   const [error, setError] = useState<Error | null>(null);
   const unsubscribeRefs = useRef<Array<() => void>>([]);
 
+  // Memoize indicator configs to avoid unnecessary re-renders
+  const memoizedConfigs = useMemo(() => indicatorConfigs, [indicatorConfigs]);
+
   useEffect(() => {
-    if (!enabled || !symbol || !interval || indicatorConfigs.length === 0) {
+    if (!enabled || !symbol || !interval || memoizedConfigs.length === 0) {
       return;
     }
 
@@ -39,7 +42,7 @@ export function useLiveIndicators(
     const unsubscribes: Array<() => void> = [];
 
     // Register and subscribe to each indicator
-    indicatorConfigs.forEach(config => {
+    memoizedConfigs.forEach(config => {
       try {
         indicatorEngine.registerIndicator(
           symbol,
@@ -93,7 +96,7 @@ export function useLiveIndicators(
       unsubscribes.forEach(unsub => unsub());
       unsubscribeRefs.current = [];
     };
-  }, [symbol, interval, enabled, JSON.stringify(indicatorConfigs)]);
+  }, [symbol, interval, enabled, memoizedConfigs]);
 
   return {
     indicators,

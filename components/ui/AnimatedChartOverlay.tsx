@@ -30,13 +30,14 @@ export function AnimatedChartOverlay() {
       { threshold: 0.3 }
     );
 
-    if (sectionRef.current) {
-      observerRef.current.observe(sectionRef.current);
+    const currentSectionRef = sectionRef.current;
+    if (currentSectionRef) {
+      observerRef.current.observe(currentSectionRef);
     }
 
     return () => {
-      if (observerRef.current && sectionRef.current) {
-        observerRef.current.unobserve(sectionRef.current);
+      if (observerRef.current && currentSectionRef) {
+        observerRef.current.unobserve(currentSectionRef);
       }
     };
   }, [isVisible]);

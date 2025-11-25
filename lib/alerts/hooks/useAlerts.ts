@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getUserAlerts, markAlertRead, markAllAlertsRead, deleteAlert } from '../alertEngine';
 import { getEventBus } from '../../realtime/engine/eventBus';
 import type { Alert } from '../alertTypes';
@@ -32,7 +32,7 @@ export function useAlerts(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const loadAlerts = async () => {
+  const loadAlerts = useCallback(async () => {
     if (!userId) return;
 
     setIsLoading(true);
@@ -48,11 +48,11 @@ export function useAlerts(
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId, options?.strategyId, options?.unreadOnly]);
 
   useEffect(() => {
     loadAlerts();
-  }, [userId, options?.strategyId, options?.unreadOnly]);
+  }, [loadAlerts]);
 
   // Subscribe to new alerts
   useEffect(() => {
@@ -66,7 +66,7 @@ export function useAlerts(
     return () => {
       unsubscribe();
     };
-  }, [userId]);
+  }, [userId, loadAlerts]);
 
   // Auto-refresh
   useEffect(() => {
@@ -74,7 +74,7 @@ export function useAlerts(
 
     const interval = setInterval(loadAlerts, 5000); // Refresh every 5 seconds
     return () => clearInterval(interval);
-  }, [userId, options?.autoRefresh]);
+  }, [userId, options?.autoRefresh, loadAlerts]);
 
   const handleMarkRead = async (alertId: string) => {
     if (!userId) return;

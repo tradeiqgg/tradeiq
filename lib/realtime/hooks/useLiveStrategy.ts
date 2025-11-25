@@ -112,7 +112,7 @@ export function useLiveStrategy(
     } catch (err) {
       setError(err as Error);
     }
-  }, [strategy, enabled]);
+  }, [strategySchema, enabled]);
 
   // Process new candles
   useEffect(() => {

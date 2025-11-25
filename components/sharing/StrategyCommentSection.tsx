@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { NeonCard } from '@/components/ui/NeonCard';
 import type { StrategyComment } from '@/types';
 
@@ -18,11 +18,7 @@ export function StrategyCommentSection({
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    loadComments();
-  }, [strategyId]);
-
-  const loadComments = async () => {
+  const loadComments = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`/api/strategy/comment?strategyId=${strategyId}`);
@@ -35,7 +31,11 @@ export function StrategyCommentSection({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [strategyId]);
+
+  useEffect(() => {
+    loadComments();
+  }, [loadComments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

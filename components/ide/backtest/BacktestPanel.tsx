@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useIDEEngine } from '../core/IDEEngine';
 import { BacktestControls } from './BacktestControls';
 import { BacktestResults } from './BacktestResults';
@@ -33,7 +33,7 @@ export function BacktestPanel({ strategy }: BacktestPanelProps) {
   });
 
   // Get strategy JSON from either IDE engine or strategy prop
-  const getStrategyJSON = () => {
+  const getStrategyJSON = useCallback(() => {
     if (engine.compiledJSON) {
       return engine.compiledJSON;
     }
@@ -44,7 +44,7 @@ export function BacktestPanel({ strategy }: BacktestPanelProps) {
       return strategy.json_logic as any;
     }
     return null;
-  };
+  }, [engine.compiledJSON, strategy]);
 
   // Validate strategy
   useEffect(() => {
@@ -59,7 +59,7 @@ export function BacktestPanel({ strategy }: BacktestPanelProps) {
         }
       }
     }
-  }, [strategy, engine.compiledJSON]);
+  }, [strategy, engine.compiledJSON, getStrategyJSON]);
 
   const handleRunBacktest = async () => {
     let strategyJSON = getStrategyJSON();
@@ -173,7 +173,7 @@ export function BacktestPanel({ strategy }: BacktestPanelProps) {
         <div className="backtest-empty flex items-center justify-center h-full text-gray-500">
           <div className="text-center">
             <p className="text-xl mb-2">No backtest results yet</p>
-            <p className="text-sm">Configure your backtest settings and click "Run Backtest" to get started</p>
+            <p className="text-sm">Configure your backtest settings and click &quot;Run Backtest&quot; to get started</p>
           </div>
         </div>
       )}

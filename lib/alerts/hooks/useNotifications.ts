@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getUserNotifications, markNotificationRead, markAllNotificationsRead } from '../notifier';
 
 export interface UseNotificationsResult {
@@ -28,7 +28,7 @@ export function useNotifications(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     if (!userId) return;
 
     setIsLoading(true);
@@ -43,11 +43,11 @@ export function useNotifications(
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId, options?.unreadOnly]);
 
   useEffect(() => {
     loadNotifications();
-  }, [userId, options?.unreadOnly]);
+  }, [loadNotifications]);
 
   // Listen for new notifications
   useEffect(() => {
@@ -61,7 +61,7 @@ export function useNotifications(
     return () => {
       window.removeEventListener('tradeiq:notification', handleNotification);
     };
-  }, [userId]);
+  }, [userId, loadNotifications]);
 
   // Auto-refresh
   useEffect(() => {
@@ -69,7 +69,7 @@ export function useNotifications(
 
     const interval = setInterval(loadNotifications, 10000); // Refresh every 10 seconds
     return () => clearInterval(interval);
-  }, [userId, options?.autoRefresh]);
+  }, [userId, options?.autoRefresh, loadNotifications]);
 
   const handleMarkRead = async (notificationId: string) => {
     if (!userId) return;
