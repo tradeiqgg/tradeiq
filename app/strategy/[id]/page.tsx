@@ -56,6 +56,16 @@ export default function StrategyIDEPage() {
         }
       }
       
+      // FIXED: Wait for Supabase session to be restored before fetching
+      // This prevents 406 errors in production
+      if (typeof window !== 'undefined') {
+        const { browserClient } = await import('@/lib/supabase/browserClient');
+        // Ensure session is restored
+        await browserClient.auth.getSession();
+        // Small delay to ensure session is fully restored
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
       // Try to fetch as public first (works without auth)
       const publicStrategy = await fetchStrategy(strategyId);
       

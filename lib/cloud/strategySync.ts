@@ -136,41 +136,81 @@ export async function uploadStrategy(
 
 /**
  * Fetch strategy from cloud storage
- * FIXED: Uses authenticated fetch to prevent 406/460 errors in production
+ * FIXED: Uses authenticated fetch for private strategies, public client for public strategies
+ * This prevents 406 errors from Supabase RLS in production
  */
 export async function fetchStrategy(
   strategyId: string,
   userId?: string
 ): Promise<Strategy | null> {
-  return authFetch(async (client) => {
-    let query = client
-      .from('strategies')
-      .select('*')
-      .eq('id', strategyId);
+  // FIXED: For public queries, try without auth first to avoid 406 errors
+  // If that fails, try with auth (for private strategies)
+  const { browserClient } = await import('@/lib/supabase/browserClient');
+  
+  // First, try to get session to see if we have auth
+  const { data: { session } } = await browserClient.auth.getSession();
+  
+  // Build query
+  let query = browserClient
+    .from('strategies')
+    .select('*')
+    .eq('id', strategyId);
 
-    // If userId provided, ensure user owns it or it's public
-    if (userId) {
-      query = query.or(`user_id.eq.${userId},visibility.eq.public,visibility.eq.unlisted`);
-    } else {
-      query = query.eq('visibility', 'public');
+  // If userId provided, ensure user owns it or it's public
+  if (userId) {
+    query = query.or(`user_id.eq.${userId},visibility.eq.public,visibility.eq.unlisted`);
+  } else {
+    query = query.eq('visibility', 'public');
+  }
+
+  // Try query (browserClient will include auth token if session exists)
+  const { data, error } = await query.single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null; // Not found
     }
-
-    const { data, error } = await query.single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return { data: null, error: null }; // Not found
+    
+    // If 406 error and we have a session, the RLS policy might be blocking
+    // Try with explicit auth fetch
+    if (error.code === 'PGRST301' || error.message?.includes('406') || error.message?.includes('406')) {
+      if (session?.access_token) {
+        // Retry with explicit auth
+        return authFetch(async (client) => {
+          let retryQuery = client
+            .from('strategies')
+            .select('*')
+            .eq('id', strategyId);
+          
+          if (userId) {
+            retryQuery = retryQuery.or(`user_id.eq.${userId},visibility.eq.public,visibility.eq.unlisted`);
+          } else {
+            retryQuery = retryQuery.eq('visibility', 'public');
+          }
+          
+          const { data: retryData, error: retryError } = await retryQuery.single();
+          
+          if (retryError) {
+            if (retryError.code === 'PGRST116') {
+              return { data: null, error: null };
+            }
+            return { data: null, error: retryError };
+          }
+          
+          return { data: retryData as Strategy, error: null };
+        }).then((result) => {
+          if (result.error) {
+            throw new Error(`Failed to fetch strategy: ${result.error.message}`);
+          }
+          return result.data;
+        });
       }
-      return { data: null, error };
     }
+    
+    throw new Error(`Failed to fetch strategy: ${error.message}`);
+  }
 
-    return { data: data as Strategy, error: null };
-  }).then((result) => {
-    if (result.error) {
-      throw new Error(`Failed to fetch strategy: ${result.error.message}`);
-    }
-    return result.data;
-  });
+  return data as Strategy;
 }
 
 /**

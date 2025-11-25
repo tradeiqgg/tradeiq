@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { WalletContextProvider } from '@/lib/wallet';
 import { AlertSystemProvider } from '@/components/alerts/AlertSystemProvider';
+import { SupabaseAuthInitializer } from '@/components/providers/SupabaseAuthInitializer';
 
 export const metadata: Metadata = {
   title: 'TradeIQ — AI Trading IDE',
@@ -26,6 +27,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="font-sans">
+        <SupabaseAuthInitializer />
         <WalletContextProvider>
           <AlertSystemProvider>
             {children}

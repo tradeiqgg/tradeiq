@@ -1,10 +1,11 @@
 'use client';
 
-import { supabase } from '../supabase';
+import { browserClient } from './browserClient';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Universal authenticated Supabase fetch wrapper
+ * Uses browser client with proper session persistence
  * Ensures auth token is always attached to requests in production
  * This fixes 406/460 errors from Supabase RLS policies
  */
@@ -12,46 +13,40 @@ export async function authFetch<T>(
   fn: (client: SupabaseClient) => Promise<{ data: T | null; error: any }>
 ): Promise<{ data: T | null; error: any }> {
   try {
-    // Get current session with auth token
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // FIXED: Always get fresh session to ensure token is current
+    // This is critical for Vercel production where sessions might not persist
+    const { data: { session }, error: sessionError } = await browserClient.auth.getSession();
     
     if (sessionError) {
       console.warn('authFetch: Failed to get session:', sessionError);
     }
 
-    // If we have a session token, create authenticated client
+    // Browser client automatically includes auth token in requests when session exists
+    // The session is restored from localStorage/IndexedDB on page load
+    // With persistSession: true, the client handles session restoration automatically
+    const client = browserClient;
+    
+    // If we have a session, ensure it's active (browserClient should handle this automatically)
+    // But we can explicitly set it to be sure
     if (session?.access_token) {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-      
-      if (!supabaseUrl || !supabaseAnonKey) {
-        console.warn('authFetch: Missing Supabase env vars, using default client');
-        return fn(supabase);
+      // Session exists, browserClient will use it automatically
+      // But we can verify by checking if we need to set it
+      try {
+        await client.auth.setSession({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token || '',
+        });
+      } catch (setError) {
+        // Session might already be set, that's fine
+        console.debug('authFetch: Session already set or error setting:', setError);
       }
-
-      // Create authenticated client with token in headers
-      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        },
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      });
-
-      return fn(authClient);
     }
 
-    // No session, use default client (for public queries)
-    return fn(supabase);
+    return fn(client);
   } catch (error) {
     console.error('authFetch: Error:', error);
-    // Fallback to default client on error
-    return fn(supabase);
+    // Fallback to browser client on error
+    return fn(browserClient);
   }
 }
 
