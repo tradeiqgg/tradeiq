@@ -25,7 +25,7 @@ export function TutorialManager({ path = 'beginner', onComplete }: TutorialManag
   }, [path]);
 
   const handleStepComplete = (stepId: string) => {
-    setCompletedSteps((prev) => new Set([...prev, stepId]));
+    setCompletedSteps((prev) => new Set([...Array.from(prev), stepId]));
   };
 
   const handleTutorialComplete = () => {

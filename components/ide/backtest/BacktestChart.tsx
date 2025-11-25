@@ -6,7 +6,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import type { BacktestResult } from '@/lib/backtester/types';
-import { createChart, ColorType, IChartApi, ISeriesApi, CrosshairMode } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, ISeriesApi, CrosshairMode, SeriesMarkerPosition, SeriesMarkerShape } from 'lightweight-charts';
 
 interface BacktestChartProps {
   result: BacktestResult;
@@ -62,9 +62,9 @@ export function BacktestChart({ result }: BacktestChartProps) {
     // Add trade markers
     const markers = result.trades.map((trade) => ({
       time: (trade.entryTime / 1000) as any,
-      position: trade.direction === 'long' ? 'belowBar' : 'aboveBar',
+      position: (trade.direction === 'long' ? 'belowBar' : 'aboveBar') as SeriesMarkerPosition,
       color: trade.direction === 'long' ? '#26a69a' : '#ef5350',
-      shape: trade.direction === 'long' ? 'arrowUp' : 'arrowDown',
+      shape: (trade.direction === 'long' ? 'arrowUp' : 'arrowDown') as SeriesMarkerShape,
       text: `${trade.direction === 'long' ? 'LONG' : 'SHORT'} @ ${trade.entryPrice.toFixed(2)}`,
     }));
 

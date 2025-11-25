@@ -196,7 +196,7 @@ function blocksToJSON(blockTree: { blocks: any[]; connections: any[] }): Partial
       id: block.id,
       indicator: indicatorId,
       params,
-      output: 'value',
+      output: 'numeric',
     });
   }
 

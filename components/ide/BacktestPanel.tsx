@@ -169,7 +169,7 @@ export function BacktestPanel({ strategy }: BacktestPanelProps) {
             <div>
               <div className="text-4xl mb-4">📊</div>
               <div className="text-sm font-mono text-[#A9A9B3]">
-                Configure backtest parameters and click "RUN BACKTEST"
+                Configure backtest parameters and click &quot;RUN BACKTEST&quot;
               </div>
             </div>
           </div>

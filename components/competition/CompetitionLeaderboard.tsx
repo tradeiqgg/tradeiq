@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { LeaderboardEntry } from '@/lib/competition/types';
 import { getCompetitionLeaderboard } from '@/lib/competition';
 
@@ -17,11 +17,7 @@ export function CompetitionLeaderboard({ competitionId }: CompetitionLeaderboard
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadLeaderboard();
-  }, [competitionId]);
-
-  const loadLeaderboard = async () => {
+  const loadLeaderboard = useCallback(async () => {
     setLoading(true);
     try {
       const entries = await getCompetitionLeaderboard(competitionId);
@@ -31,7 +27,11 @@ export function CompetitionLeaderboard({ competitionId }: CompetitionLeaderboard
     } finally {
       setLoading(false);
     }
-  };
+  }, [competitionId]);
+
+  useEffect(() => {
+    loadLeaderboard();
+  }, [loadLeaderboard]);
 
   if (loading) {
     return (

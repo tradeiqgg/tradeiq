@@ -344,13 +344,22 @@ export class LiveStrategyRunner {
     this.state.equity = this.state.balance;
     this.state.unrealizedPnL = 0;
 
+    const size = this.state.position.size || 1;
+    const profit = pnl;
+    const returnPct = this.state.position.entryPrice !== 0 
+      ? (profit / (this.state.position.entryPrice * size)) * 100 
+      : 0;
+    
     this.state.closedTrades.push({
+      id: `trade-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       entryPrice: this.state.position.entryPrice,
       exitPrice: price,
       entryTime: this.state.position.entryTime,
       exitTime: Date.now(),
-      pnl,
-      type: this.state.position.direction,
+      size,
+      direction: this.state.position.direction,
+      profit,
+      returnPct,
       reason,
     });
 

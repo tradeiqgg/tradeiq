@@ -11,7 +11,7 @@ declare global {
 interface TradingViewWidgetProps {
   symbol: string;
   type: 'stocks' | 'crypto';
-  interval?: 'D' | 'W' | 'M' | '1' | '5' | '15' | '30' | '60' | '240' | '1D' | '1W';
+  interval?: 'D' | 'W' | 'M' | '1' | '5' | '15' | '30' | '60' | '240' | '1D' | '1W' | '1M';
 }
 
 export function TradingViewWidget({ symbol, type, interval = 'D' }: TradingViewWidgetProps) {
@@ -48,7 +48,7 @@ export function TradingViewWidget({ symbol, type, interval = 'D' }: TradingViewW
         }
 
         // Map interval
-        let tvInterval = interval;
+        let tvInterval: string = interval;
         if (interval === 'D') tvInterval = '1D';
         if (interval === 'W') tvInterval = '1W';
         if (interval === 'M') tvInterval = '1M';
@@ -77,9 +77,10 @@ export function TradingViewWidget({ symbol, type, interval = 'D' }: TradingViewW
 
     document.head.appendChild(script);
 
+    const currentContainer = containerRef.current;
     return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+      if (currentContainer) {
+        currentContainer.innerHTML = '';
       }
       if (script.parentNode) {
         script.parentNode.removeChild(script);

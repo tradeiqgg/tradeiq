@@ -34,7 +34,7 @@ export default function CompetitionsPage() {
     if (user?.id) {
       fetchStrategies(user.id);
     }
-  }, [connected, router, fetchCompetitions, user?.id, fetchStrategies]);
+  }, [mounted, connected, connecting, router, fetchCompetitions, user?.id, fetchStrategies]);
 
   useEffect(() => {
     if (selectedCompetition) {

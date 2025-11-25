@@ -13,7 +13,6 @@ import { useCloudSync } from '@/lib/cloud/useCloudSync';
 import { useAuthStore } from '@/stores/authStore';
 import { useIDEEngine } from './core/IDEEngine';
 import { syncFromJSON } from './core/IDESyncBridge';
-import { useIDEEngine as useIDEEngineStore } from './core/IDEEngine';
 import { ErrorBoundary } from './ErrorBoundary';
 import { TutorialManager } from '@/components/tutorial';
 
@@ -48,30 +47,24 @@ export function StrategyIDE({ strategy: initialStrategy }: StrategyIDEProps) {
       // Load strategy JSON into IDE engine
       if (initialStrategy.strategy_json) {
         const json = initialStrategy.strategy_json as any;
-        useIDEEngineStore.setState({ 
-          compiledJSON: json,
-          jsonText: JSON.stringify(json, null, 2)
-        });
+        ideEngine.updateJSON(JSON.stringify(json, null, 2));
         
         // Sync to TQL and blocks
         const syncResult = syncFromJSON(json);
         if (syncResult.tql) {
-          useIDEEngineStore.setState({ tqlText: syncResult.tql });
+          ideEngine.updateTQL(syncResult.tql);
         }
         if (syncResult.blocks) {
-          useIDEEngineStore.setState({ blockTree: syncResult.blocks });
+          ideEngine.updateBlocks(syncResult.blocks);
         }
       } else if (initialStrategy.strategy_tql) {
-        useIDEEngineStore.setState({ tqlText: initialStrategy.strategy_tql });
+        ideEngine.updateTQL(initialStrategy.strategy_tql);
       } else if (initialStrategy.json_logic) {
         const json = initialStrategy.json_logic as any;
-        useIDEEngineStore.setState({ 
-          compiledJSON: json,
-          jsonText: JSON.stringify(json, null, 2)
-        });
+        ideEngine.updateJSON(JSON.stringify(json, null, 2));
       }
     }
-  }, [initialStrategy.id]);
+  }, [initialStrategy, ideEngine]);
 
   // Sync strategy when initialStrategy changes
   useEffect(() => {
@@ -183,7 +176,7 @@ export function StrategyIDE({ strategy: initialStrategy }: StrategyIDEProps) {
             <StrategySidebar 
               strategy={strategy} 
               onAutoSave={handleAutoSave}
-              onTabChange={setActiveTab}
+              onTabChange={(tab) => setActiveTab(tab as typeof activeTab)}
             />
           )}
         </div>
@@ -203,7 +196,7 @@ export function StrategyIDE({ strategy: initialStrategy }: StrategyIDEProps) {
           <ErrorBoundary>
             <IDETabs
               activeTab={activeTab}
-              onTabChange={setActiveTab}
+              onTabChange={(tab) => setActiveTab(tab)}
               strategy={strategy}
               onAutoSave={handleAutoSave}
               selectedBlock={selectedBlock}

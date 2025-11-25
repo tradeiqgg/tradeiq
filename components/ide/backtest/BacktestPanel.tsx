@@ -13,6 +13,7 @@ import { runBacktest } from '@/lib/backtester';
 import type { Strategy } from '@/types';
 import { validateStrategy } from '@/lib/tql/validator';
 import { useAuthStore } from '@/stores/authStore';
+import { useStrategyStore } from '@/stores/strategyStore';
 
 interface BacktestPanelProps {
   strategy?: Strategy;
@@ -21,6 +22,7 @@ interface BacktestPanelProps {
 export function BacktestPanel({ strategy }: BacktestPanelProps) {
   const engine = useIDEEngine();
   const { user } = useAuthStore();
+  const { updateStrategy } = useStrategyStore();
   const [isRunning, setIsRunning] = useState(false);
   const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +98,6 @@ export function BacktestPanel({ strategy }: BacktestPanelProps) {
       // Save backtest result to database
       if (user?.id && strategy?.id) {
         try {
-          const { createBacktest } = await import('@/stores/backtestStore');
           const backtestStore = await import('@/stores/backtestStore');
           await backtestStore.useBacktestStore.getState().createBacktest({
             user_id: user.id,
@@ -112,9 +113,8 @@ export function BacktestPanel({ strategy }: BacktestPanelProps) {
       }
       
       // Update strategy with new settings if strategy prop exists
-      if (strategy && engine.updateStrategy) {
-        engine.updateStrategy({
-          ...strategy,
+      if (strategy?.id) {
+        await updateStrategy(strategy.id, {
           strategy_json: strategyJSON,
           json_logic: strategyJSON,
         });
@@ -164,7 +164,7 @@ export function BacktestPanel({ strategy }: BacktestPanelProps) {
       {/* Results */}
       {backtestResult && !isRunning && (
         <div className="backtest-results-section flex-1 overflow-auto">
-          <BacktestResults result={backtestResult} />
+          <BacktestResults result={backtestResult} strategyId={strategy?.id} />
         </div>
       )}
 

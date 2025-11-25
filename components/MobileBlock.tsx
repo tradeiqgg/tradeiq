@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lockdown } from './Lockdown';
 
 interface MobileBlockProps {
   children: React.ReactNode;

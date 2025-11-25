@@ -18,9 +18,10 @@ type TabId = 'charts' | 'equity' | 'drawdown' | 'trades' | 'rules' | 'logs' | 'h
 
 interface BacktestResultsProps {
   result: BacktestResult;
+  strategyId?: string;
 }
 
-export function BacktestResults({ result }: BacktestResultsProps) {
+export function BacktestResults({ result, strategyId }: BacktestResultsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('charts');
 
   const tabs: Array<{ id: TabId; label: string }> = [
@@ -95,7 +96,7 @@ export function BacktestResults({ result }: BacktestResultsProps) {
         {activeTab === 'trades' && <BacktestTradeList result={result} />}
         {activeTab === 'rules' && <BacktestHeatmap result={result} />}
         {activeTab === 'logs' && <BacktestLogs result={result} />}
-        {activeTab === 'history' && <BacktestHistory strategyId={result.strategy.id || ''} />}
+        {activeTab === 'history' && <BacktestHistory strategyId={strategyId || ''} />}
       </div>
     </div>
   );

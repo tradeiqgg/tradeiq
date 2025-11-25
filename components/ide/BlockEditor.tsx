@@ -101,7 +101,7 @@ export function BlockEditor({ strategy, onAutoSave, selectedBlock: externalSelec
       const debounce = setTimeout(syncToJSON, 500);
       return () => clearTimeout(debounce);
     }
-  }, [blocks, connections]);
+  }, [blocks, connections, ideEngine, onAutoSave]);
 
   // Add block from palette
   const addBlock = (blockId: string) => {
@@ -123,14 +123,14 @@ export function BlockEditor({ strategy, onAutoSave, selectedBlock: externalSelec
   };
 
   // Save blocks to strategy
-  const saveBlocks = (updatedBlocks: BlockInstance[], updatedConnections: Connection[]) => {
+  const saveBlocks = useCallback((updatedBlocks: BlockInstance[], updatedConnections: Connection[]) => {
     onAutoSave({
       block_schema: {
         blocks: updatedBlocks,
         connections: updatedConnections,
       },
     });
-  };
+  }, [onAutoSave]);
 
   // Handle block dragging
   const handleMouseDown = (e: React.MouseEvent, block: BlockInstance) => {
@@ -202,7 +202,7 @@ export function BlockEditor({ strategy, onAutoSave, selectedBlock: externalSelec
       window.removeEventListener('mousemove', handleGlobalMouseMove);
       window.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [draggedBlock, dragOffset, blocks, connections]);
+  }, [draggedBlock, dragOffset, blocks, connections, saveBlocks]);
 
   // Cancel connection on escape or canvas click
   useEffect(() => {
@@ -216,7 +216,7 @@ export function BlockEditor({ strategy, onAutoSave, selectedBlock: externalSelec
   }, []);
 
   // Delete selected block
-  const deleteSelectedBlock = () => {
+  const deleteSelectedBlock = useCallback(() => {
     if (!currentSelectedBlock) return;
     const updatedBlocks = blocks.filter(b => b.id !== currentSelectedBlock.id);
     const updatedConnections = connections.filter(
@@ -226,7 +226,7 @@ export function BlockEditor({ strategy, onAutoSave, selectedBlock: externalSelec
     setConnections(updatedConnections);
     handleSelectBlock(null);
     saveBlocks(updatedBlocks, updatedConnections);
-  };
+  }, [currentSelectedBlock, blocks, connections, handleSelectBlock, saveBlocks]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -238,7 +238,7 @@ export function BlockEditor({ strategy, onAutoSave, selectedBlock: externalSelec
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSelectedBlock]);
+  }, [currentSelectedBlock, deleteSelectedBlock]);
 
   // Get block position for rendering connections
   const getBlockCenter = (blockId: string, isOutput: boolean) => {

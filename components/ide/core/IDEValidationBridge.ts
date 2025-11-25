@@ -6,6 +6,7 @@ import { validateStrategy, type TQValidationResult } from '@/lib/tql';
 import { TQLLexer } from '@/lib/tql/lexer';
 import { TQLParser } from '@/lib/tql/parser';
 import { compileTQLToJSON } from '@/lib/tql/compiler';
+import { TQErrorCode } from '@/lib/tql/errors';
 import type { IDEMode } from './IDEEngine';
 import { useIDEEngine } from './IDEEngine';
 
@@ -81,13 +82,24 @@ export async function runIdeValidation(
               } else {
                 result = {
                   valid: false,
-                  errors: compileResult.errors.map((e) => ({
-                    type: 'error' as const,
-                    code: e.code,
-                    message: e.message,
-                    line: e.line,
-                    column: e.column,
-                  })),
+                  errors: compileResult.errors.map((e) => {
+                    // Map CompileError.type to TQErrorCode
+                    let code: TQErrorCode;
+                    if (e.type === 'syntax') {
+                      code = TQErrorCode.SYNTAX_ERROR;
+                    } else if (e.type === 'semantic') {
+                      code = TQErrorCode.LOGICAL_CONFLICT;
+                    } else {
+                      code = TQErrorCode.INVALID_SECTION;
+                    }
+                    return {
+                      type: 'error' as const,
+                      code,
+                      message: e.message,
+                      line: e.line,
+                      column: e.column,
+                    };
+                  }),
                   warnings: [],
                   info: [],
                 };

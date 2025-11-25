@@ -60,7 +60,7 @@ export function StrategyCard({ strategy }: StrategyCardProps) {
           {STAGING_MODE ? (
             <LockdownButton
               feature="Strategy deletion"
-              onClick={handleDelete}
+              onClick={() => {}}
               className="ml-2 p-1 text-red-400 hover:text-red-300 opacity-50 cursor-not-allowed"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

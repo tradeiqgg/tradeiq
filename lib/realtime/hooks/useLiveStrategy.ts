@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { getLiveStrategyRunner, type LiveStrategyState } from '../engine/liveStrategyRunner';
-import { getEventBus, type RealtimeEventType } from '../engine/eventBus';
+import { getEventBus, type RealtimeEventType, type RealtimeEvent } from '../engine/eventBus';
 import { useLivePrice } from './useLivePrice';
 import type { TQJSSchema } from '@/lib/tql/schema';
 import type { Strategy } from '@/types';
@@ -146,6 +146,4 @@ export function useLiveStrategy(
     events,
   };
 }
-
-import type { RealtimeEvent } from '../engine/eventBus';
 

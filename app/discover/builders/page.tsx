@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { LayoutShell } from '@/components/LayoutShell';
 import { NeonCard } from '@/components/ui/NeonCard';
 import Link from 'next/link';
@@ -16,11 +16,7 @@ export default function BuildersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'xp' | 'strategies' | 'likes'>('xp');
 
-  useEffect(() => {
-    loadBuilders();
-  }, [sortBy]);
-
-  const loadBuilders = async () => {
+  const loadBuilders = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`/api/discover/builders?sort=${sortBy}&limit=50`);
@@ -33,7 +29,11 @@ export default function BuildersPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [sortBy]);
+
+  useEffect(() => {
+    loadBuilders();
+  }, [loadBuilders]);
 
   return (
     <LayoutShell>

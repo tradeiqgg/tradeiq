@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useBacktestStore } from '@/stores/backtestStore';
 import { useAuthStore } from '@/stores/authStore';
 import type { Backtest } from '@/types';
@@ -18,13 +18,7 @@ export function BacktestHistory({ strategyId }: BacktestHistoryProps) {
   const { backtests, fetchBacktests } = useBacktestStore();
   const { user } = useAuthStore();
 
-  useEffect(() => {
-    if (user?.id) {
-      loadHistory();
-    }
-  }, [strategyId, user?.id]);
-
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     setLoading(true);
     try {
       if (user?.id) {
@@ -35,7 +29,13 @@ export function BacktestHistory({ strategyId }: BacktestHistoryProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, fetchBacktests]);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadHistory();
+    }
+  }, [strategyId, user?.id, loadHistory]);
 
   // Filter backtests for this strategy
   const strategyBacktests = backtests.filter(

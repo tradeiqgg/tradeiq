@@ -133,7 +133,7 @@ export class FeedManager {
    * Disconnect all feeds
    */
   disconnectAll(): void {
-    for (const [id, feed] of this.feeds.entries()) {
+    for (const [id, feed] of Array.from(this.feeds.entries())) {
       feed.disconnect();
     }
     this.feeds.clear();

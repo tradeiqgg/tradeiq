@@ -72,7 +72,7 @@ risk {
           id: 'rsi',
           indicator: 'rsi',
           params: { period: 14 },
-          output: 'value',
+          output: 'numeric',
         },
       ],
       rules: {
@@ -188,13 +188,13 @@ risk {
           id: 'sma_fast',
           indicator: 'sma',
           params: { period: 20 },
-          output: 'value',
+          output: 'numeric',
         },
         {
           id: 'sma_slow',
           indicator: 'sma',
           params: { period: 50 },
-          output: 'value',
+          output: 'numeric',
         },
       ],
       rules: {
@@ -311,7 +311,7 @@ risk {
           id: 'macd',
           indicator: 'macd',
           params: { fast: 12, slow: 26, signal: 9 },
-          output: 'macd',
+          output: 'band',
         },
       ],
       rules: {
@@ -320,9 +320,9 @@ risk {
             conditions: [
               {
                 type: 'condition',
-                left: { source_type: 'indicator', id: 'macd', field: 'macd' },
+                left: { source_type: 'indicator', id: 'macd' },
                 operator: 'crosses_above',
-                right: { source_type: 'indicator', id: 'macd', field: 'signal' },
+                right: { source_type: 'indicator', id: 'macd' },
               },
             ],
             action: {
@@ -338,9 +338,9 @@ risk {
             conditions: [
               {
                 type: 'condition',
-                left: { source_type: 'indicator', id: 'macd', field: 'macd' },
+                left: { source_type: 'indicator', id: 'macd' },
                 operator: 'crosses_below',
-                right: { source_type: 'indicator', id: 'macd', field: 'signal' },
+                right: { source_type: 'indicator', id: 'macd' },
               },
             ],
             action: {
@@ -427,7 +427,7 @@ risk {
           id: 'bb',
           indicator: 'bb',
           params: { period: 20, stddev: 2 },
-          output: 'bands',
+          output: 'band',
         },
       ],
       rules: {
@@ -438,7 +438,7 @@ risk {
                 type: 'condition',
                 left: { source_type: 'price', field: 'close' },
                 operator: 'lt',
-                right: { source_type: 'indicator', id: 'bb', field: 'lower' },
+                right: { source_type: 'indicator', id: 'bb' },
               },
             ],
             action: {
@@ -456,7 +456,7 @@ risk {
                 type: 'condition',
                 left: { source_type: 'price', field: 'close' },
                 operator: 'gt',
-                right: { source_type: 'indicator', id: 'bb', field: 'upper' },
+                right: { source_type: 'indicator', id: 'bb' },
               },
             ],
             action: {

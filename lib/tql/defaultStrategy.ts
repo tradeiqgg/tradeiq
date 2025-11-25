@@ -12,7 +12,6 @@ export function createDefaultStrategy(name: string = 'MyStrategy'): TQJSSchema {
   return {
     meta: {
       name,
-      version: 1,
       description: '',
       author: '',
       created_at: new Date().toISOString(),
@@ -92,7 +91,6 @@ export function ensureValidStrategyStructure(strategy: Partial<TQJSSchema>): TQJ
   return {
     meta: {
       name: strategy.meta?.name || defaultStrategy.meta.name,
-      version: strategy.meta?.version || defaultStrategy.meta.version,
       description: strategy.meta?.description || defaultStrategy.meta.description,
       author: strategy.meta?.author || defaultStrategy.meta.author,
       created_at: strategy.meta?.created_at || defaultStrategy.meta.created_at,

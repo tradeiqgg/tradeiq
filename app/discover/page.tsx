@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { LayoutShell } from '@/components/LayoutShell';
 import { StrategyGallery } from '@/components/strategyLibrary';
 import { NeonCard } from '@/components/ui/NeonCard';
@@ -13,11 +13,7 @@ export default function DiscoverPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'all' | 'trending' | 'new' | 'popular'>('trending');
 
-  useEffect(() => {
-    loadStrategies();
-  }, [activeFilter]);
-
-  const loadStrategies = async () => {
+  const loadStrategies = useCallback(async () => {
     setIsLoading(true);
     try {
       if (activeFilter === 'trending') {
@@ -40,7 +36,7 @@ export default function DiscoverPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeFilter]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();

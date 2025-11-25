@@ -101,7 +101,13 @@ export class LiveIndicatorEngine {
       this.subscribers.set(subscriptionKey, new Set());
     }
 
-    this.subscribers.get(subscriptionKey)!.add(callback);
+    // Wrap callback to match expected signature
+    const wrappedCallback = (values: IndicatorValue[]) => {
+      if (values.length > 0) {
+        callback(values[values.length - 1]); // Call with the latest value
+      }
+    };
+    this.subscribers.get(subscriptionKey)!.add(wrappedCallback);
 
     // Register indicator if not already registered
     this.registerIndicator(symbol, interval, indicatorId, params);
@@ -110,7 +116,7 @@ export class LiveIndicatorEngine {
     return () => {
       const subs = this.subscribers.get(subscriptionKey);
       if (subs) {
-        subs.delete(callback);
+        subs.delete(wrappedCallback);
         if (subs.size === 0) {
           this.subscribers.delete(subscriptionKey);
         }
@@ -156,7 +162,7 @@ export class LiveIndicatorEngine {
     }
 
     const allValues: IndicatorValue[] = [];
-    for (const values of cache.indicators.values()) {
+    for (const values of Array.from(cache.indicators.values())) {
       if (values.length > 0) {
         allValues.push(values[values.length - 1]);
       }
@@ -169,7 +175,7 @@ export class LiveIndicatorEngine {
    * Update all indicators for a cache
    */
   private updateIndicators(cacheKey: string, cache: IndicatorCache): void {
-    for (const [indicatorKey, _] of cache.indicators.entries()) {
+    for (const [indicatorKey, _] of Array.from(cache.indicators.entries())) {
       const [indicatorId, paramsStr] = indicatorKey.split('-');
       const params = JSON.parse(paramsStr);
       
@@ -198,7 +204,7 @@ export class LiveIndicatorEngine {
         low: c.low,
         close: c.close,
         volume: c.volume,
-        timestamp: c.timestamp,
+        time: c.timestamp,
       }));
 
       // Compute indicator series
@@ -243,7 +249,7 @@ export class LiveIndicatorEngine {
       const subscriptionKey = `${cacheKey}-${indicatorKey}`;
       const subs = this.subscribers.get(subscriptionKey);
       if (subs) {
-        subs.forEach(callback => callback(indicatorValue));
+        subs.forEach(callback => callback([indicatorValue]));
       }
     } catch (error) {
       console.error(`Failed to compute indicator ${indicatorId}:`, error);
@@ -258,7 +264,7 @@ export class LiveIndicatorEngine {
     this.caches.delete(cacheKey);
     
     // Remove all subscriptions for this cache
-    for (const key of this.subscribers.keys()) {
+    for (const key of Array.from(this.subscribers.keys())) {
       if (key.startsWith(cacheKey)) {
         this.subscribers.delete(key);
       }

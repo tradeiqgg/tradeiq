@@ -43,7 +43,7 @@ export function TQLEditor({ strategy, onAutoSave }: TQLEditorProps) {
       setTqlText(defaultTql);
       ideEngine.updateTQL(defaultTql);
     }
-  }, [strategy.id]);
+  }, [strategy.id, strategy.strategy_tql, strategy.strategy_json, ideEngine]);
 
   const handleChange = (value: string) => {
     setTqlText(value);

@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     let marketCap = 0;
     try {
       const profileResponse = await fetch(
-        `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`,
+        `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${apiKey}`,
         {
           headers: {
             'Accept': 'application/json',
