@@ -16,8 +16,10 @@ export async function hashStrategy(strategy: TQJSSchema): Promise<string> {
 
   // Use Web Crypto API for SHA256
   const encoder = new TextEncoder();
-  const data = encoder.encode(jsonString);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const data = encoder.encode(jsonString); // Uint8Array
+  
+  // FIX: crypto.subtle.digest must receive an ArrayBuffer, not Uint8Array<ArrayBufferLike>
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data.buffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 
