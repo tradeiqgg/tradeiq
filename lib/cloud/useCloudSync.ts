@@ -27,6 +27,18 @@ export function useCloudSync(strategyId: string | null) {
 
   const lastSavedRef = useRef<string>('');
 
+  // FIXED: Prevent autosave from re-registering constantly
+  // Store setters in refs to avoid re-triggering effect
+  const setIsDirtyRef = useRef(setIsDirty);
+  const setIsSavingRef = useRef(setIsSaving);
+  const setLastSavedRef = useRef(setLastSaved);
+  
+  useEffect(() => {
+    setIsDirtyRef.current = setIsDirty;
+    setIsSavingRef.current = setIsSaving;
+    setLastSavedRef.current = setLastSaved;
+  });
+
   useEffect(() => {
     if (!strategyId || !user?.id) {
       stopAutosave();
@@ -50,9 +62,9 @@ export function useCloudSync(strategyId: string | null) {
 
     const onSave = (success: boolean) => {
       if (success) {
-        setIsSaving(false);
-        setLastSaved(new Date());
-        setIsDirty(false);
+        setIsSavingRef.current(false);
+        setLastSavedRef.current(new Date());
+        setIsDirtyRef.current(false);
       }
     };
 
@@ -70,9 +82,7 @@ export function useCloudSync(strategyId: string | null) {
     blockTree,
     compiledJSON,
     compileResult?.valid,
-    setIsDirty,
-    setIsSaving,
-    setLastSaved,
+    // FIXED: Removed setIsDirty, setIsSaving, setLastSaved from deps - using refs instead
   ]);
 
   // Manual save function

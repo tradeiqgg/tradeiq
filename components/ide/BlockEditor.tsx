@@ -52,8 +52,17 @@ export function BlockEditor({ strategy, onAutoSave, selectedBlock: externalSelec
     }
   };
 
-  // Load blocks from strategy
+  // FIXED: Load blocks from strategy only once on mount or when strategy ID changes
+  const loadedStrategyIdRef = useRef<string | null>(null);
+  
   useEffect(() => {
+    // CRITICAL FIX: Only load when strategy ID changes, not when object reference changes
+    if (!strategy?.id || loadedStrategyIdRef.current === strategy.id) {
+      return;
+    }
+    
+    loadedStrategyIdRef.current = strategy.id;
+    
     if (strategy.block_schema?.blocks) {
       const loadedBlocks = strategy.block_schema.blocks.map((block: any, idx: number) => ({
         id: block.id || `block-${idx}`,
@@ -69,9 +78,18 @@ export function BlockEditor({ strategy, onAutoSave, selectedBlock: externalSelec
         setConnections(strategy.block_schema.connections);
       }
     }
-  }, [strategy.block_schema]);
+  }, [strategy?.id]); // FIXED: Only depend on stable ID
 
-  // Sync to JSON whenever blocks change
+  // FIXED: Sync to JSON whenever blocks change - removed unstable dependencies
+  const onAutoSaveRef = useRef(onAutoSave);
+  const ideEngineRef = useRef(ideEngine);
+  
+  // Keep refs updated
+  useEffect(() => {
+    onAutoSaveRef.current = onAutoSave;
+    ideEngineRef.current = ideEngine;
+  });
+  
   useEffect(() => {
     const syncToJSON = () => {
       try {
@@ -79,16 +97,17 @@ export function BlockEditor({ strategy, onAutoSave, selectedBlock: externalSelec
         const result = syncFromBlocks(blockTree);
         
         if (result.json) {
-          ideEngine.updateJSON(JSON.stringify(result.json, null, 2));
-          onAutoSave({
+          // Use ref to avoid re-triggering this effect
+          ideEngineRef.current.updateJSON(JSON.stringify(result.json, null, 2));
+          onAutoSaveRef.current({
             strategy_json: result.json,
             json_logic: result.json,
           });
         }
         
         if (result.tql) {
-          ideEngine.updateTQL(result.tql);
-          onAutoSave({
+          ideEngineRef.current.updateTQL(result.tql);
+          onAutoSaveRef.current({
             strategy_tql: result.tql,
           });
         }
@@ -101,7 +120,7 @@ export function BlockEditor({ strategy, onAutoSave, selectedBlock: externalSelec
       const debounce = setTimeout(syncToJSON, 500);
       return () => clearTimeout(debounce);
     }
-  }, [blocks, connections, ideEngine, onAutoSave]);
+  }, [blocks, connections]); // FIXED: Removed ideEngine and onAutoSave from deps
 
   // Add block from palette
   const addBlock = (blockId: string) => {

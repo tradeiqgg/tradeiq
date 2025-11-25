@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Strategy } from '@/types';
 import { StrategySidebar } from './StrategySidebar';
@@ -38,33 +38,41 @@ export function StrategyIDE({ strategy: initialStrategy }: StrategyIDEProps) {
   // Initialize IDE Engine with strategy data
   const ideEngine = useIDEEngine();
   
+  // FIXED: Use ref to prevent infinite loop - only initialize once per strategy ID
+  const initializedStrategyIdRef = useRef<string | null>(null);
+  
   useEffect(() => {
-    // Initialize IDE engine with strategy data
-    if (initialStrategy) {
-      ideEngine.setStrategyId(initialStrategy.id);
-      ideEngine.setStrategyName(initialStrategy.title || 'Untitled Strategy');
-      
-      // Load strategy JSON into IDE engine
-      if (initialStrategy.strategy_json) {
-        const json = initialStrategy.strategy_json as any;
-        ideEngine.updateJSON(JSON.stringify(json, null, 2));
-        
-        // Sync to TQL and blocks
-        const syncResult = syncFromJSON(json);
-        if (syncResult.tql) {
-          ideEngine.updateTQL(syncResult.tql);
-        }
-        if (syncResult.blocks) {
-          ideEngine.updateBlocks(syncResult.blocks);
-        }
-      } else if (initialStrategy.strategy_tql) {
-        ideEngine.updateTQL(initialStrategy.strategy_tql);
-      } else if (initialStrategy.json_logic) {
-        const json = initialStrategy.json_logic as any;
-        ideEngine.updateJSON(JSON.stringify(json, null, 2));
-      }
+    // CRITICAL FIX: Only initialize when strategy ID changes, not on every render
+    if (!initialStrategy || initializedStrategyIdRef.current === initialStrategy.id) {
+      return;
     }
-  }, [initialStrategy, ideEngine]);
+    
+    initializedStrategyIdRef.current = initialStrategy.id;
+    
+    // Initialize IDE engine with strategy data
+    ideEngine.setStrategyId(initialStrategy.id);
+    ideEngine.setStrategyName(initialStrategy.title || 'Untitled Strategy');
+    
+    // Load strategy JSON into IDE engine
+    if (initialStrategy.strategy_json) {
+      const json = initialStrategy.strategy_json as any;
+      ideEngine.updateJSON(JSON.stringify(json, null, 2));
+      
+      // Sync to TQL and blocks
+      const syncResult = syncFromJSON(json);
+      if (syncResult.tql) {
+        ideEngine.updateTQL(syncResult.tql);
+      }
+      if (syncResult.blocks) {
+        ideEngine.updateBlocks(syncResult.blocks);
+      }
+    } else if (initialStrategy.strategy_tql) {
+      ideEngine.updateTQL(initialStrategy.strategy_tql);
+    } else if (initialStrategy.json_logic) {
+      const json = initialStrategy.json_logic as any;
+      ideEngine.updateJSON(JSON.stringify(json, null, 2));
+    }
+  }, [initialStrategy?.id]); // FIXED: Only depend on stable ID, not entire object
 
   // Sync strategy when initialStrategy changes
   useEffect(() => {

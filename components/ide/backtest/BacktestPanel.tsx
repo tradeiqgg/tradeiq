@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useIDEEngine } from '../core/IDEEngine';
 import { BacktestControls } from './BacktestControls';
 import { BacktestResults } from './BacktestResults';
@@ -35,6 +35,7 @@ export function BacktestPanel({ strategy }: BacktestPanelProps) {
   });
 
   // Get strategy JSON from either IDE engine or strategy prop
+  // FIXED: Removed strategy dependency to prevent infinite loops
   const getStrategyJSON = useCallback(() => {
     if (engine.compiledJSON) {
       return engine.compiledJSON;
@@ -46,22 +47,28 @@ export function BacktestPanel({ strategy }: BacktestPanelProps) {
       return strategy.json_logic as any;
     }
     return null;
-  }, [engine.compiledJSON, strategy]);
+  }, [engine.compiledJSON, strategy?.id, strategy?.strategy_json, strategy?.json_logic]);
 
-  // Validate strategy
+  // Validate strategy - FIXED: Only run when strategy ID changes
+  const validatedStrategyIdRef = useRef<string | null>(null);
+  
   useEffect(() => {
-    if (strategy) {
-      const strategyJSON = getStrategyJSON();
-      if (strategyJSON) {
-        const validation = validateStrategy({ json: strategyJSON });
-        if (!validation.valid) {
-          setError(`Strategy validation failed: ${validation.errors.map(e => e.message).join(', ')}`);
-        } else {
-          setError(null);
-        }
+    if (!strategy?.id || validatedStrategyIdRef.current === strategy.id) {
+      return;
+    }
+    
+    validatedStrategyIdRef.current = strategy.id;
+    
+    const strategyJSON = getStrategyJSON();
+    if (strategyJSON) {
+      const validation = validateStrategy({ json: strategyJSON });
+      if (!validation.valid) {
+        setError(`Strategy validation failed: ${validation.errors.map(e => e.message).join(', ')}`);
+      } else {
+        setError(null);
       }
     }
-  }, [strategy, engine.compiledJSON, getStrategyJSON]);
+  }, [strategy?.id, getStrategyJSON]);
 
   const handleRunBacktest = async () => {
     let strategyJSON = getStrategyJSON();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Strategy } from '@/types';
 import { syncFromJSON } from './core/IDESyncBridge';
 import { useIDEEngine } from './core/IDEEngine';
@@ -15,11 +15,23 @@ export function JSONEditor({ strategy, onAutoSave }: JSONEditorProps) {
   const [error, setError] = useState<string | null>(null);
   const ideEngine = useIDEEngine();
 
+  // FIXED: Load JSON only when strategy ID changes to prevent infinite loop
+  const loadedStrategyIdRef = useRef<string | null>(null);
+  
   useEffect(() => {
+    // CRITICAL FIX: Only load when strategy ID changes, not when ideEngine.jsonText changes
+    // ideEngine.jsonText changes constantly, causing infinite loops!
+    if (!strategy?.id || loadedStrategyIdRef.current === strategy.id) {
+      return;
+    }
+    
+    loadedStrategyIdRef.current = strategy.id;
+    
     try {
       // Prioritize IDE engine state (which is updated by TQL editor)
-      if (ideEngine.jsonText && ideEngine.jsonText.trim() !== '{}') {
-        setJsonText(ideEngine.jsonText);
+      const currentJsonText = ideEngine.jsonText;
+      if (currentJsonText && currentJsonText.trim() !== '{}') {
+        setJsonText(currentJsonText);
       } else if (strategy.strategy_json) {
         setJsonText(JSON.stringify(strategy.strategy_json, null, 2));
       } else if (strategy.json_logic) {
@@ -31,7 +43,7 @@ export function JSONEditor({ strategy, onAutoSave }: JSONEditorProps) {
     } catch (err) {
       setError('Invalid JSON in strategy');
     }
-  }, [strategy.strategy_json, strategy.json_logic, strategy.id, ideEngine.jsonText]);
+  }, [strategy?.id]); // FIXED: Only depend on stable strategy ID
 
   const handleChange = (value: string) => {
     setJsonText(value);

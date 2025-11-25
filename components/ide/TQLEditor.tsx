@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Strategy } from '@/types';
 import { syncFromTQL } from './core/IDESyncBridge';
 import { useIDEEngine } from './core/IDEEngine';
@@ -19,18 +19,33 @@ export function TQLEditor({ strategy, onAutoSave }: TQLEditorProps) {
   const [warnings, setWarnings] = useState<string[]>([]);
   const ideEngine = useIDEEngine();
 
+  // FIXED: Load TQL only when strategy ID changes to prevent infinite loop
+  const loadedStrategyIdRef = useRef<string | null>(null);
+  const ideEngineRef = useRef(ideEngine);
+  
   useEffect(() => {
+    ideEngineRef.current = ideEngine;
+  });
+  
+  useEffect(() => {
+    // CRITICAL FIX: Only load when strategy ID changes
+    if (!strategy?.id || loadedStrategyIdRef.current === strategy.id) {
+      return;
+    }
+    
+    loadedStrategyIdRef.current = strategy.id;
+    
     // Load TQL from strategy when component mounts or strategy changes
     if (strategy.strategy_tql) {
       setTqlText(strategy.strategy_tql);
-      ideEngine.updateTQL(strategy.strategy_tql);
+      ideEngineRef.current.updateTQL(strategy.strategy_tql);
     } else if (strategy.strategy_json) {
       // Generate TQL from JSON
       try {
         const tql = compileJSONToTQL(strategy.strategy_json as any);
         if (tql) {
           setTqlText(tql);
-          ideEngine.updateTQL(tql);
+          ideEngineRef.current.updateTQL(tql);
         } else {
           setTqlText(getDefaultTQL());
         }
@@ -41,9 +56,9 @@ export function TQLEditor({ strategy, onAutoSave }: TQLEditorProps) {
     } else {
       const defaultTql = getDefaultTQL();
       setTqlText(defaultTql);
-      ideEngine.updateTQL(defaultTql);
+      ideEngineRef.current.updateTQL(defaultTql);
     }
-  }, [strategy.id, strategy.strategy_tql, strategy.strategy_json, ideEngine]);
+  }, [strategy?.id]); // FIXED: Only depend on stable strategy ID
 
   const handleChange = (value: string) => {
     setTqlText(value);
