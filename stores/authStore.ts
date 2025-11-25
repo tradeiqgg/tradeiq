@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { PublicKey } from '@solana/web3.js';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { User } from '@/types';
 
 interface AuthState {
@@ -96,6 +96,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { publicKey } = get();
     if (!publicKey) {
       console.log('fetchUser: No publicKey available');
+      return;
+    }
+
+    // Check if Supabase is configured before attempting to fetch
+    if (!isSupabaseConfigured()) {
+      console.error('fetchUser: Cannot fetch user - Supabase is not configured');
+      console.error('Please create .env.local file with NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
+      console.error('See LOCAL_ENV_SETUP.md for instructions');
+      set({ isLoading: false });
       return;
     }
 

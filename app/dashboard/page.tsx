@@ -8,6 +8,7 @@ import { useStrategyStore } from '@/stores/strategyStore';
 import { StrategyCard } from '@/components/StrategyCard';
 import { useWalletSafe } from '@/lib/useWalletSafe';
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -108,16 +109,31 @@ export default function DashboardPage() {
 
   // If not loading but no user, show error or retry option
   if (!user && !authLoading) {
+    const supabaseConfigured = isSupabaseConfigured();
     return (
       <LayoutShell>
         <div className="container mx-auto px-4 py-6">
           <div className="text-center py-12 terminal-panel">
             <p className="text-destructive mb-4 font-mono">Failed to load user data</p>
+            {!supabaseConfigured && (
+              <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <p className="text-yellow-400 text-sm mb-2 font-mono">
+                  ⚠️ Supabase not configured for local development
+                </p>
+                <p className="text-muted-foreground text-xs mb-2">
+                  Create a <code className="text-[#7CFF4F]">.env.local</code> file with your Supabase credentials
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  See <code className="text-[#7CFF4F]">LOCAL_ENV_SETUP.md</code> for instructions
+                </p>
+              </div>
+            )}
             <button
               onClick={() => fetchUser()}
               className="terminal-button"
+              disabled={!supabaseConfigured}
             >
-              RETRY
+              {supabaseConfigured ? 'RETRY' : 'SUPABASE NOT CONFIGURED'}
             </button>
           </div>
         </div>

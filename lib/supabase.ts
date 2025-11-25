@@ -37,11 +37,18 @@ export const supabase = isSupabaseConfigured()
 // Log configuration status in development
 if (typeof window !== 'undefined') {
   if (!isSupabaseConfigured()) {
-    console.warn('⚠️ Supabase not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local');
-    console.warn('Current values:', {
-      url: supabaseUrl || 'MISSING',
-      key: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'MISSING',
+    console.error('❌ Supabase not configured for local development!');
+    console.error('⚠️  You are seeing this because environment variables are missing.');
+    console.error('📝 To fix: Create a `.env.local` file in the project root with:');
+    console.error('   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co');
+    console.error('   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here');
+    console.error('📖 See LOCAL_ENV_SETUP.md for detailed instructions');
+    console.error('Current values:', {
+      url: supabaseUrl || 'MISSING (using placeholder)',
+      key: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'MISSING (using placeholder)',
     });
+    console.error('🔗 Get your credentials from: https://app.supabase.com/project/_/settings/api');
+    console.error('   OR copy from Vercel: https://vercel.com/tradeiqs-projects/tradeiq/settings/environment-variables');
   } else {
     console.log('✅ Supabase configured:', supabaseUrl);
   }

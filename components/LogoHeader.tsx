@@ -14,7 +14,6 @@ export function LogoHeader() {
   const { user, signOut } = useAuthStore();
 
   const navLinks = [
-    { href: "/dashboard", label: "Dashboard" },
     { href: "/discover", label: "Discover" },
     { href: "/competitions", label: "Competitions" },
     { href: "/leaderboard", label: "Leaderboard" },

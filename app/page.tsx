@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useWalletSafe } from '@/lib/useWalletSafe';
@@ -21,9 +22,13 @@ import { ExpandableTokenCard } from '@/components/ui/ExpandableTokenCard';
 import { TypingText } from '@/components/ui/TypingText';
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
 import { TabbedCodeAnimation } from '@/components/ui/TabbedCodeAnimation';
+import { LiveDevStream } from '@/components/LiveDevStream';
+import { IQDexChart } from '@/components/IQDexChart';
+import { IQTokenFeatureCard } from '@/components/IQTokenFeatureCard';
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
   const { connected, connecting, publicKey } = useWalletSafe();
   const { user, setPublicKey, fetchUser } = useAuthStore();
 
@@ -45,6 +50,18 @@ export default function LandingPage() {
       }, 500);
     }
   }, [connected, publicKey, mounted, setPublicKey, fetchUser]);
+
+  // Redirect to username setup if user is connected but doesn't have username
+  useEffect(() => {
+    if (!mounted) return;
+    // Wait a bit for user to be fetched
+    if (connected && publicKey && user) {
+      if (!user.username || user.username.trim() === '') {
+        // Redirect to username setup
+        router.replace('/setup-username');
+      }
+    }
+  }, [mounted, connected, publicKey, user, router]);
 
   return (
     <div className="min-h-screen bg-[#0B0B0C]">
@@ -95,16 +112,11 @@ export default function LandingPage() {
 
                 {/* Buttons - Horizontal Layout */}
                 <div className="flex flex-wrap items-center gap-4">
-                  {mounted && connected && user ? (
+                  {mounted && connected && publicKey ? (
                     <>
                       <Link href="/dashboard">
                         <NeonButton size="lg" variant="primary">
-                          Open Dashboard
-                        </NeonButton>
-                      </Link>
-                      <Link href="/strategy/new">
-                        <NeonButton size="lg" variant="secondary">
-                          Create Strategy
+                          Dashboard
                         </NeonButton>
                       </Link>
                     </>
@@ -598,16 +610,63 @@ export default function LandingPage() {
 
       <FullWidthSeparator />
 
-      {/* $TRADEIQ TOKEN SECTION */}
+      {/* $IQ TOKEN LIVE SECTION */}
       <section className="section-padding">
         <div className="container mx-auto px-4">
           <ScrollReveal direction="up" delay={0}>
             <SectionHeader
-              title="The $TRADEIQ Token Powers the Entire Competitive Ecosystem"
-              subtitle="A utility token designed to reward traders and fund competitions."
+              title="The $IQ Token Powers the TradeIQ Ecosystem"
+              subtitle="$IQ is the live utility token for TradeIQ—funding development, powering competitions, and unlocking premium AI features."
             />
           </ScrollReveal>
 
+          {/* Top Row: Livestream and Chart Side-by-Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 items-stretch">
+            {/* Column 1: PumpFun Livestream */}
+            <ScrollReveal direction="up" delay={100} className="h-full">
+              <LiveDevStream />
+            </ScrollReveal>
+
+            {/* Column 2: DEX Screener Chart */}
+            <ScrollReveal direction="up" delay={200} className="h-full">
+              <IQDexChart />
+            </ScrollReveal>
+          </div>
+
+          {/* Bottom Row: About $IQ Feature Cards (2x2 Grid) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ScrollReveal direction="up" delay={300}>
+              <IQTokenFeatureCard
+                number="1"
+                title="Trader Rewards"
+                description="$IQ powers weekly competitions and rewards active PnL creators."
+              />
+            </ScrollReveal>
+            <ScrollReveal direction="up" delay={400}>
+              <IQTokenFeatureCard
+                number="2"
+                title="Build-in-Public Development"
+                description="Holding and supporting $IQ helps fund the live 24/7 dev stream—features ship as the audience watches."
+              />
+            </ScrollReveal>
+            <ScrollReveal direction="up" delay={500}>
+              <IQTokenFeatureCard
+                number="3"
+                title="Future AI Access"
+                description="Premium AI bots, strategy generation, and advanced backtesting will unlock through staking tiers."
+              />
+            </ScrollReveal>
+            <ScrollReveal direction="up" delay={600}>
+              <IQTokenFeatureCard
+                number="4"
+                title="Community Governance"
+                description="$IQ holders help choose indicators, rule templates, future competitions, and platform direction."
+              />
+            </ScrollReveal>
+          </div>
+
+          {/* OLD TOKENOMICS SECTION - COMMENTED OUT FOR VERSION TRACKING */}
+          {/* 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <ScrollReveal direction="up" delay={100}>
               <ExpandableTokenCard
@@ -678,6 +737,7 @@ This ensures the platform evolves according to community needs and maintains ali
               />
             </ScrollReveal>
           </div>
+          */}
         </div>
       </section>
 

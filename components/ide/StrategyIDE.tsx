@@ -15,6 +15,7 @@ import { useIDEEngine } from './core/IDEEngine';
 import { syncFromJSON } from './core/IDESyncBridge';
 import { ErrorBoundary } from './ErrorBoundary';
 import { TutorialManager } from '@/components/tutorial';
+import { IDEBetaBanner } from '@/components/IDEBetaBanner';
 
 interface StrategyIDEProps {
   strategy: Strategy;
@@ -163,6 +164,9 @@ export function StrategyIDE({ strategy: initialStrategy }: StrategyIDEProps) {
           </div>
         </div>
       </div>
+
+      {/* Beta Banner */}
+      <IDEBetaBanner />
       
       {/* Tutorial Overlay */}
       {showTutorial && (
