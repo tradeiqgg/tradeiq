@@ -2,7 +2,9 @@
 // CHAPTER 10: Cloud Strategy Sync Layer
 // =====================================================================
 
-import { supabase } from '@/lib/supabase';
+// FIXED: Use browserClient only - no server-side Supabase client
+// This ensures all queries happen client-side with proper session handling
+import { browserClient } from '@/lib/supabase/browserClient';
 import { authFetch } from '@/lib/supabase/authFetch';
 import type { Strategy, StrategyVersion } from '@/types';
 import type { TQJSSchema } from '@/lib/tql/schema';
@@ -248,21 +250,28 @@ export async function syncStrategy(
       strategy_blocks: localData.strategy_blocks || cloudStrategy.strategy_blocks,
     };
 
-    const { data, error } = await supabase
-      .from('strategies')
-      .update({
-        ...merged,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', strategyId)
-      .select()
-      .single();
+    return authFetch(async (client) => {
+      const { data, error } = await client
+        .from('strategies')
+        .update({
+          ...merged,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', strategyId)
+        .select()
+        .single();
 
-    if (error) {
-      throw new Error(`Failed to sync strategy: ${error.message}`);
-    }
+      if (error) {
+        return { data: null, error };
+      }
 
-    return { strategy: data as Strategy, conflictDetected: true };
+      return { data: data as Strategy, error: null };
+    }).then((result) => {
+      if (result.error) {
+        throw new Error(`Failed to sync strategy: ${result.error.message}`);
+      }
+      return { strategy: result.data!, conflictDetected: true };
+    });
   }
 
   // No conflict, just upload local changes
@@ -284,42 +293,56 @@ export async function createSnapshot(
     summary?: string;
   }
 ): Promise<StrategyVersion> {
-  const { data: snapshot, error } = await supabase
-    .from('strategy_versions')
-    .insert({
-      strategy_id: strategyId,
-      version: data.version,
-      strategy_json: data.strategy_json,
-      strategy_tql: data.strategy_tql,
-      strategy_blocks: data.strategy_blocks,
-      editor_mode: data.editor_mode,
-      summary: data.summary || `Version ${data.version}`,
-    })
-    .select()
-    .single();
+  return authFetch(async (client) => {
+    const { data: snapshot, error } = await client
+      .from('strategy_versions')
+      .insert({
+        strategy_id: strategyId,
+        version: data.version,
+        strategy_json: data.strategy_json,
+        strategy_tql: data.strategy_tql,
+        strategy_blocks: data.strategy_blocks,
+        editor_mode: data.editor_mode,
+        summary: data.summary || `Version ${data.version}`,
+      })
+      .select()
+      .single();
 
-  if (error) {
-    throw new Error(`Failed to create snapshot: ${error.message}`);
-  }
+    if (error) {
+      return { data: null, error };
+    }
 
-  return snapshot as StrategyVersion;
+    return { data: snapshot as StrategyVersion, error: null };
+  }).then((result) => {
+    if (result.error) {
+      throw new Error(`Failed to create snapshot: ${result.error.message}`);
+    }
+    return result.data!;
+  });
 }
 
 /**
  * List all versions for a strategy
  */
 export async function listVersions(strategyId: string): Promise<StrategyVersion[]> {
-  const { data, error } = await supabase
-    .from('strategy_versions')
-    .select('*')
-    .eq('strategy_id', strategyId)
-    .order('version', { ascending: false });
+  return authFetch(async (client) => {
+    const { data, error } = await client
+      .from('strategy_versions')
+      .select('*')
+      .eq('strategy_id', strategyId)
+      .order('version', { ascending: false });
 
-  if (error) {
-    throw new Error(`Failed to list versions: ${error.message}`);
-  }
+    if (error) {
+      return { data: null, error };
+    }
 
-  return (data || []) as StrategyVersion[];
+    return { data: (data || []) as StrategyVersion[], error: null };
+  }).then((result) => {
+    if (result.error) {
+      throw new Error(`Failed to list versions: ${result.error.message}`);
+    }
+    return result.data || [];
+  });
 }
 
 /**
@@ -330,36 +353,43 @@ export async function restoreVersion(
   userId: string,
   version: number
 ): Promise<Strategy> {
-  const { data: versionData, error: fetchError } = await supabase
-    .from('strategy_versions')
-    .select('*')
-    .eq('strategy_id', strategyId)
-    .eq('version', version)
-    .single();
+  return authFetch(async (client) => {
+    const { data: versionData, error: fetchError } = await client
+      .from('strategy_versions')
+      .select('*')
+      .eq('strategy_id', strategyId)
+      .eq('version', version)
+      .single();
 
-  if (fetchError) {
-    throw new Error(`Failed to fetch version: ${fetchError.message}`);
-  }
+    if (fetchError) {
+      return { data: null, error: fetchError };
+    }
 
-  // Update strategy with version data
-  const { data: strategy, error: updateError } = await supabase
-    .from('strategies')
-    .update({
-      strategy_json: versionData.strategy_json,
-      strategy_tql: versionData.strategy_tql,
-      strategy_blocks: versionData.strategy_blocks,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', strategyId)
-    .eq('user_id', userId)
-    .select()
-    .single();
+    // Update strategy with version data
+    const { data: strategy, error: updateError } = await client
+      .from('strategies')
+      .update({
+        strategy_json: versionData.strategy_json,
+        strategy_tql: versionData.strategy_tql,
+        strategy_blocks: versionData.strategy_blocks,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', strategyId)
+      .eq('user_id', userId)
+      .select()
+      .single();
 
-  if (updateError) {
-    throw new Error(`Failed to restore version: ${updateError.message}`);
-  }
+    if (updateError) {
+      return { data: null, error: updateError };
+    }
 
-  return strategy as Strategy;
+    return { data: strategy as Strategy, error: null };
+  }).then((result) => {
+    if (result.error) {
+      throw new Error(`Failed to restore version: ${result.error.message}`);
+    }
+    return result.data!;
+  });
 }
 
 /**
@@ -374,25 +404,32 @@ export async function publishStrategy(
     tags?: string[];
   }
 ): Promise<Strategy> {
-  const { data: strategy, error } = await supabase
-    .from('strategies')
-    .update({
-      visibility: 'public',
-      title: data.title,
-      description: data.description,
-      tags: data.tags || [],
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', strategyId)
-    .eq('user_id', userId)
-    .select()
-    .single();
+  return authFetch(async (client) => {
+    const { data: strategy, error } = await client
+      .from('strategies')
+      .update({
+        visibility: 'public',
+        title: data.title,
+        description: data.description,
+        tags: data.tags || [],
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', strategyId)
+      .eq('user_id', userId)
+      .select()
+      .single();
 
-  if (error) {
-    throw new Error(`Failed to publish strategy: ${error.message}`);
-  }
+    if (error) {
+      return { data: null, error };
+    }
 
-  return strategy as Strategy;
+    return { data: strategy as Strategy, error: null };
+  }).then((result) => {
+    if (result.error) {
+      throw new Error(`Failed to publish strategy: ${result.error.message}`);
+    }
+    return result.data!;
+  });
 }
 
 /**
@@ -415,32 +452,39 @@ export async function forkStrategy(
   }
 
   // Create new strategy
-  const { data: newStrategy, error } = await supabase
-    .from('strategies')
-    .insert({
-      user_id: userId,
-      title: newTitle || `${original.title} (Fork)`,
-      description: original.description,
-      raw_prompt: original.raw_prompt,
-      json_logic: original.json_logic,
-      block_schema: original.block_schema,
-      pseudocode: original.pseudocode,
-      strategy_json: original.strategy_json,
-      strategy_tql: original.strategy_tql,
-      strategy_blocks: original.strategy_blocks,
-      visibility: 'private', // Forked strategies start as private
-      tags: original.tags || [],
-      forked_from: originalStrategyId,
-      version: 1,
-    })
-    .select()
-    .single();
+  return authFetch(async (client) => {
+    const { data: newStrategy, error } = await client
+      .from('strategies')
+      .insert({
+        user_id: userId,
+        title: newTitle || `${original.title} (Fork)`,
+        description: original.description,
+        raw_prompt: original.raw_prompt,
+        json_logic: original.json_logic,
+        block_schema: original.block_schema,
+        pseudocode: original.pseudocode,
+        strategy_json: original.strategy_json,
+        strategy_tql: original.strategy_tql,
+        strategy_blocks: original.strategy_blocks,
+        visibility: 'private', // Forked strategies start as private
+        tags: original.tags || [],
+        forked_from: originalStrategyId,
+        version: 1,
+      })
+      .select()
+      .single();
 
-  if (error) {
-    throw new Error(`Failed to fork strategy: ${error.message}`);
-  }
+    if (error) {
+      return { data: null, error };
+    }
 
-  return newStrategy as Strategy;
+    return { data: newStrategy as Strategy, error: null };
+  }).then((result) => {
+    if (result.error) {
+      throw new Error(`Failed to fork strategy: ${result.error.message}`);
+    }
+    return result.data!;
+  });
 }
 
 /**
