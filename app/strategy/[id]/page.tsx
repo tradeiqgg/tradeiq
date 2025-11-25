@@ -10,6 +10,7 @@ import { StrategyIDE } from '@/components/ide/StrategyIDE';
 import { fetchStrategy } from '@/lib/cloud/strategySync';
 import PublicStrategyView from './PublicStrategyView';
 import { ErrorBoundary } from '@/components/ide/ErrorBoundary';
+import StrategyBoundary from '@/components/Boundary/StrategyBoundary';
 import type { Strategy } from '@/types';
 
 export default function StrategyIDEPage() {
@@ -29,19 +30,38 @@ export default function StrategyIDEPage() {
     setMounted(true);
   }, []);
 
-  // Check authentication and determine view mode - FIXED: Prevent infinite loops
+  // FIXED: Wait for auth to be ready before fetching strategy
+  // This prevents 406 errors from Supabase RLS in production
   const checkStrategy = useCallback(async () => {
     if (!mounted || !strategyId || hasCheckedRef.current) return;
+    
+    // Wait for wallet connection state to stabilize
+    if (connecting) {
+      return; // Still connecting, wait
+    }
+    
     hasCheckedRef.current = true;
     
     try {
       setError(null);
-      // Try to fetch as public first
+      setCheckingAuth(true);
+      
+      // If connected, wait a moment for auth to be ready
+      if (connected) {
+        // Give auth store time to fetch user if needed
+        const currentUser = useAuthStore.getState().user;
+        if (!currentUser) {
+          // Wait for user to be fetched
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      
+      // Try to fetch as public first (works without auth)
       const publicStrategy = await fetchStrategy(strategyId);
       
       if (publicStrategy) {
         // Check if user owns it
-        if (connected && user?.id) {
+        if (connected) {
           const currentUser = useAuthStore.getState().user;
           if (currentUser?.id === publicStrategy.user_id) {
             // User owns it, show IDE
@@ -68,7 +88,7 @@ export default function StrategyIDEPage() {
         }
       } else {
         // Not found as public, try as owner
-        if (connected && user?.id) {
+        if (connected) {
           const currentUser = useAuthStore.getState().user;
           if (currentUser) {
             await fetchStrategies(currentUser.id);
@@ -90,17 +110,26 @@ export default function StrategyIDEPage() {
     } catch (err: any) {
       console.error('Failed to load strategy:', err);
       setError(err.message || 'Failed to load strategy');
-      router.replace('/dashboard');
+      // Don't redirect immediately, show error instead
     } finally {
       setCheckingAuth(false);
     }
-  }, [mounted, strategyId, connected, user?.id, router, fetchStrategies, setCurrentStrategy]);
+  }, [mounted, strategyId, connected, connecting, router, fetchStrategies, setCurrentStrategy]);
 
+  // FIXED: Wait for connection state to stabilize before fetching
   useEffect(() => {
-    if (mounted && strategyId && !hasCheckedRef.current) {
+    if (!mounted || !strategyId) return;
+    
+    // Reset check flag when connection state changes
+    if (connecting) {
+      hasCheckedRef.current = false;
+      return;
+    }
+    
+    if (!hasCheckedRef.current) {
       checkStrategy();
     }
-  }, [mounted, strategyId, checkStrategy]);
+  }, [mounted, strategyId, connected, connecting, checkStrategy]);
 
   // Show loading state
   if (!mounted || checkingAuth) {
@@ -157,23 +186,20 @@ export default function StrategyIDEPage() {
 
   return (
     <LayoutShell>
-      <ErrorBoundary
-        fallback={
+      <StrategyBoundary>
+        {currentStrategy ? (
+          <ErrorBoundary>
+            <StrategyIDE strategy={currentStrategy} />
+          </ErrorBoundary>
+        ) : (
           <div className="h-screen flex items-center justify-center">
             <div className="text-center">
-              <p className="text-red-400 font-mono mb-4">Failed to load strategy IDE</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-[#7CFF4F] text-[#0B0B0C] rounded-lg font-sans font-medium hover:bg-[#70e84b] transition-colors"
-              >
-                Reload Page
-              </button>
+              <div className="terminal-spinner text-[#7CFF4F] text-2xl mb-4" />
+              <p className="text-[#A9A9B3] font-mono">Loading IDE...</p>
             </div>
           </div>
-        }
-      >
-        {currentStrategy && <StrategyIDE strategy={currentStrategy} />}
-      </ErrorBoundary>
+        )}
+      </StrategyBoundary>
     </LayoutShell>
   );
 }

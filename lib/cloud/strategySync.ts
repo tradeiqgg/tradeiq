@@ -3,6 +3,7 @@
 // =====================================================================
 
 import { supabase } from '@/lib/supabase';
+import { authFetch } from '@/lib/supabase/authFetch';
 import type { Strategy, StrategyVersion } from '@/types';
 import type { TQJSSchema } from '@/lib/tql/schema';
 
@@ -54,107 +55,122 @@ export async function uploadStrategy(
     tags?: string[];
   }
 ): Promise<Strategy> {
-  const { data: strategy, error } = await supabase
-    .from('strategies')
-    .select('*')
-    .eq('id', strategyId)
-    .eq('user_id', userId)
-    .single();
+  return authFetch(async (client) => {
+    const { data: strategy, error } = await client
+      .from('strategies')
+      .select('*')
+      .eq('id', strategyId)
+      .eq('user_id', userId)
+      .single();
 
-  if (error) {
-    throw new Error(`Failed to fetch strategy: ${error.message}`);
-  }
+    if (error) {
+      return { data: null, error };
+    }
 
-  // Calculate new version if significant changes
-  const currentVersion = strategy.version || 1;
-  const oldData = {
-    strategy_json: strategy.strategy_json,
-    strategy_tql: strategy.strategy_tql,
-    strategy_blocks: strategy.strategy_blocks,
-  };
-  
-  const newData = {
-    strategy_json: data.strategy_json || oldData.strategy_json,
-    strategy_tql: data.strategy_tql || oldData.strategy_tql,
-    strategy_blocks: data.strategy_blocks || oldData.strategy_blocks,
-  };
+    // Calculate new version if significant changes
+    const currentVersion = strategy.version || 1;
+    const oldData = {
+      strategy_json: strategy.strategy_json,
+      strategy_tql: strategy.strategy_tql,
+      strategy_blocks: strategy.strategy_blocks,
+    };
+    
+    const newData = {
+      strategy_json: data.strategy_json || oldData.strategy_json,
+      strategy_tql: data.strategy_tql || oldData.strategy_tql,
+      strategy_blocks: data.strategy_blocks || oldData.strategy_blocks,
+    };
 
-  const diffPercent = Math.max(
-    calculateDiffPercent(oldData.strategy_json, newData.strategy_json),
-    calculateDiffPercent(oldData.strategy_tql, newData.strategy_tql),
-    calculateDiffPercent(oldData.strategy_blocks, newData.strategy_blocks)
-  );
+    const diffPercent = Math.max(
+      calculateDiffPercent(oldData.strategy_json, newData.strategy_json),
+      calculateDiffPercent(oldData.strategy_tql, newData.strategy_tql),
+      calculateDiffPercent(oldData.strategy_blocks, newData.strategy_blocks)
+    );
 
-  const newVersion = diffPercent > 5 ? currentVersion + 1 : currentVersion;
+    const newVersion = diffPercent > 5 ? currentVersion + 1 : currentVersion;
 
-  // Update strategy
-  const updateData: any = {
-    updated_at: new Date().toISOString(),
-    version: newVersion,
-  };
-
-  if (data.strategy_json !== undefined) updateData.strategy_json = data.strategy_json;
-  if (data.strategy_tql !== undefined) updateData.strategy_tql = data.strategy_tql;
-  if (data.strategy_blocks !== undefined) updateData.strategy_blocks = data.strategy_blocks;
-  if (data.title !== undefined) updateData.title = data.title;
-  if (data.description !== undefined) updateData.description = data.description;
-  if (data.visibility !== undefined) updateData.visibility = data.visibility;
-  if (data.tags !== undefined) updateData.tags = data.tags;
-
-  const { data: updated, error: updateError } = await supabase
-    .from('strategies')
-    .update(updateData)
-    .eq('id', strategyId)
-    .select()
-    .single();
-
-  if (updateError) {
-    throw new Error(`Failed to update strategy: ${updateError.message}`);
-  }
-
-  // Create version snapshot if version changed
-  if (newVersion > currentVersion) {
-    await createSnapshot(strategyId, {
+    // Update strategy
+    const updateData: any = {
+      updated_at: new Date().toISOString(),
       version: newVersion,
-      strategy_json: newData.strategy_json,
-      strategy_tql: newData.strategy_tql,
-      strategy_blocks: newData.strategy_blocks,
-      editor_mode: data.strategy_tql ? 'tql' : data.strategy_blocks ? 'blocks' : 'json',
-    });
-  }
+    };
 
-  return updated as Strategy;
+    if (data.strategy_json !== undefined) updateData.strategy_json = data.strategy_json;
+    if (data.strategy_tql !== undefined) updateData.strategy_tql = data.strategy_tql;
+    if (data.strategy_blocks !== undefined) updateData.strategy_blocks = data.strategy_blocks;
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.visibility !== undefined) updateData.visibility = data.visibility;
+    if (data.tags !== undefined) updateData.tags = data.tags;
+
+    const { data: updated, error: updateError } = await client
+      .from('strategies')
+      .update(updateData)
+      .eq('id', strategyId)
+      .select()
+      .single();
+
+    if (updateError) {
+      return { data: null, error: updateError };
+    }
+
+    // Create version snapshot if version changed
+    if (newVersion > currentVersion) {
+      await createSnapshot(strategyId, {
+        version: newVersion,
+        strategy_json: newData.strategy_json,
+        strategy_tql: newData.strategy_tql,
+        strategy_blocks: newData.strategy_blocks,
+        editor_mode: data.strategy_tql ? 'tql' : data.strategy_blocks ? 'blocks' : 'json',
+      });
+    }
+
+    return { data: updated as Strategy, error: null };
+  }).then((result) => {
+    if (result.error) {
+      throw new Error(`Failed to upload strategy: ${result.error.message}`);
+    }
+    return result.data!;
+  });
 }
 
 /**
  * Fetch strategy from cloud storage
+ * FIXED: Uses authenticated fetch to prevent 406/460 errors in production
  */
 export async function fetchStrategy(
   strategyId: string,
   userId?: string
 ): Promise<Strategy | null> {
-  let query = supabase
-    .from('strategies')
-    .select('*')
-    .eq('id', strategyId);
+  return authFetch(async (client) => {
+    let query = client
+      .from('strategies')
+      .select('*')
+      .eq('id', strategyId);
 
-  // If userId provided, ensure user owns it or it's public
-  if (userId) {
-    query = query.or(`user_id.eq.${userId},visibility.eq.public,visibility.eq.unlisted`);
-  } else {
-    query = query.eq('visibility', 'public');
-  }
-
-  const { data, error } = await query.single();
-
-  if (error) {
-    if (error.code === 'PGRST116') {
-      return null; // Not found
+    // If userId provided, ensure user owns it or it's public
+    if (userId) {
+      query = query.or(`user_id.eq.${userId},visibility.eq.public,visibility.eq.unlisted`);
+    } else {
+      query = query.eq('visibility', 'public');
     }
-    throw new Error(`Failed to fetch strategy: ${error.message}`);
-  }
 
-  return data as Strategy;
+    const { data, error } = await query.single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return { data: null, error: null }; // Not found
+      }
+      return { data: null, error };
+    }
+
+    return { data: data as Strategy, error: null };
+  }).then((result) => {
+    if (result.error) {
+      throw new Error(`Failed to fetch strategy: ${result.error.message}`);
+    }
+    return result.data;
+  });
 }
 
 /**
